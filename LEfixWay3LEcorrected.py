@@ -36,12 +36,15 @@ def equation(x, a, b, c, density, pressure):
     return (a * x + b * x**2 + c * x**3) * pressure - density
 
 def fsolve(a, b, c, density, pressure):
-    return np.roots([c, b, a, -density / pressure])
+    root_coeffs = [c, b, a, -density / pressure]
+    root_coeffs = np.nan_to_num(root_coeffs)  # Handle NaN and inf values
+    return np.roots(root_coeffs)
 
 def calculate_x_spring2021_span_zero(density):
     x_solution = fsolve(a, b, c, density, pressure)
+    x_solution = np.nan_to_num(x_solution)
     return x_solution[2]  # Extract the third element from the solution array
-
+    
 def calculate_transmittance_spring2021_span_zero(x):
     transmittance = 1 - ((x * pressure) / (spring2021zero * spring2021span))
     return transmittance
