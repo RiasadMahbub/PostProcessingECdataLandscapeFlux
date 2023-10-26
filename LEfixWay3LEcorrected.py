@@ -44,7 +44,7 @@ def calculate_x_spring2021_span_zero(density):
     x_solution = fsolve(a, b, c, density, pressure)
     x_solution = np.nan_to_num(x_solution)
     return x_solution[2]  # Extract the third element from the solution array
-    
+
 def calculate_transmittance_spring2021_span_zero(x):
     transmittance = 1 - ((x * pressure) / (spring2021zero * spring2021span))
     return transmittance
@@ -71,13 +71,13 @@ for csv_file in csv_files:
     way3_filtered = pd.read_csv(csv_file, header=None)  # Modify the read_csv parameters if needed
 
     # Apply the functions
-    way3_filtered['x'] = way3_filtered[11].apply(calculate_x_spring2021_span_zero)
+    way3_filtered['x'] = way3_filtered[12].apply(calculate_x_spring2021_span_zero)
     way3_filtered['transmittance'] = way3_filtered['x'].apply(calculate_transmittance_spring2021_span_zero)
     way3_filtered['x'] = way3_filtered['transmittance'].map(calculate_x)
-    way3_filtered['_'] = way3_filtered['x'].map(calculate_density)
+    way3_filtered['density'] = way3_filtered['x'].map(calculate_density)
 
     # Construct the output file path
     output_csv_file = os.path.join(output_directory, os.path.basename(csv_file))
 
     # Export the modified DataFrame to a new CSV file
-    way3_filtered.to_csv(output_csv_file, index=False)
+    way3_filtered.to_csv(output_csv_file, header=False, index=False)
