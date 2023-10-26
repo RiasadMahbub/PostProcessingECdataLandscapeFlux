@@ -74,10 +74,13 @@ for csv_file in csv_files:
     way3_filtered['x'] = way3_filtered[12].apply(calculate_x_spring2021_span_zero)
     way3_filtered['transmittance'] = way3_filtered['x'].apply(calculate_transmittance_spring2021_span_zero)
     way3_filtered['x'] = way3_filtered['transmittance'].map(calculate_x)
-    way3_filtered['density'] = way3_filtered['x'].map(calculate_density)
+    way3_filtered[12] = way3_filtered['x'].map(calculate_density) ## saving the h2o molar density in 12th column
+
+    # Drop the last two columns
+    way3_filtered = way3_filtered.iloc[:, :-2]
 
     # Construct the output file path
     output_csv_file = os.path.join(output_directory, os.path.basename(csv_file))
 
     # Export the modified DataFrame to a new CSV file
-    way3_filtered.to_csv(output_csv_file, header=False, index=False)
+    way3_filtered.to_csv(output_csv_file, header=False, index=False, float_format='%g') ## file formatDataFrame are written in a concise and human-readable format in the resulting CSV file.
