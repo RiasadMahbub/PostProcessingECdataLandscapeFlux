@@ -22,7 +22,21 @@ This is an R Markdown document. In this document we are trying to compile the in
 - [AmeriFlux Variable Information Instructions](https://ameriflux.lbl.gov/sites/variable-information/variable-information-instructions/)
 - [Uploading Half-Hourly/Hourly Data to AmeriFlux](https://ameriflux.lbl.gov/data/uploading-half-hourly-hourly-data/)
 
+### Guidelines 
+#### Time format and Null values 
+1. The first two column are TIMESTAMP_START and TIMESTAMP_END (ISO time format: YYYYMMDDHHMM e.g., 201810220930)  <br>
+2. Dont convert the scientific notations in timestamps  <br>
+3. An hour column to check the daily data
 
+#### Consistent Variable names 
+1. Do support list of common variable names (From the table)<br>
+2. Use the exact variable names and the units <br>
+3. Very first on the list, what to do with the data, remove the known values  <br>
+
+#### Data quality check
+1. U-star filtering of the data  <br>
+2. CSV is a delimited text file that uses a comma to separate values  <br>
+3. Convert NA and NaN at the end. 
 
 ## Location of the files
 The location of the data can be obtained from these directories. Shared directory is the directory of the landscape flux group where the data are kept. The data were copied from the shared directory to local directory (rbmhabub's computer) to do the processing of the data
@@ -41,9 +55,10 @@ Way3 Directory: "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_L
 Way4 Directory: "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Way4" 
 
 
-## Reading the files and fixing the timestamp
+## Reading the files and fixing the timestamp: Time format and Null values 
 ```{r }
-## read the files
+# Load necessary library
+library(lubridate)
 # Set the directory path and file name
 directory_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Way3"
 file_name <- "Way3 2018.csv"
@@ -52,25 +67,17 @@ file_path <- file.path(directory_path, file_name)
 # Read the CSV file
 way3_2018_data <- read.csv(file_path)
 
-# Display the first few rows of the data
 # Create TIMESTAMP_START and TIMESTAMP_END columns
 way3_2018_data <- cbind(TIMESTAMP_START = NA, TIMESTAMP_END = NA, way3_2018_data)
-# Convert TIMESTAMP column to POSIXct format
-# Load necessary library
-library(lubridate)
-
-# Convert TIMESTAMP to datetime objects
+# Convert TIMESTAMP column to POSIXct format (1/1/2018  12:00:00 AM)
 way3_2018_data$TIMESTAMP <- ymd_hms(way3_2018_data$TIMESTAMP)
-
 # Create TIMESTAMP_START in the desired format
 way3_2018_data$TIMESTAMP_START <- format(way3_2018_data$TIMESTAMP, "%Y%m%d%H%M")
 
 # Create TIMESTAMP_END by adding 30 minutes to TIMESTAMP and formatting it
 way3_2018_data$TIMESTAMP_END <- format(way3_2018_data$TIMESTAMP + minutes(30), "%Y%m%d%H%M")
 
-# Convert TIMESTAMP_START and TIMESTAMP_END to character type
-way3_2018_data$TIMESTAMP_START <- as.character(way3_2018_data$TIMESTAMP_START)
-way3_2018_data$TIMESTAMP_END <- as.character(way3_2018_data$TIMESTAMP_END)
+
 # Create a new column 'HOUR' to store the hour extracted from the TIMESTAMP
 way3_2018_data$HOUR <- hour(way3_2018_data$TIMESTAMP)
 
@@ -80,22 +87,81 @@ way3_2018_data$MONTH <- month(way3_2018_data$TIMESTAMP)
 # Create a new column 'DAY_OF_YEAR' to store the day of the year extracted from the TIMESTAMP
 way3_2018_data$DOY <- yday(way3_2018_data$TIMESTAMP)
 
-# Replace NaN and NA values with -9999
-way3_2018_data[is.na(way3_2018_data)] <- -9999
-# Define custom function to handle NaN values in data frames
-is.nan.data.frame <- function(x) {
-  do.call(cbind, lapply(x, is.nan))
-}
-
-# Replace NaN with -9999
-way3_2018_data[is.nan.data.frame(way3_2018_data)] <- -9999
 
 # Assuming way3_2018_data is your dataset
 print(way3_2018_data[1:4, 1:4])
 
+
+
 ```
 
-## Saving the files 
+#### Consistent Variable names:
+1. Filter out the variables that are relevant \
+2. From the description find the common variables \
+
+source of eddypro: 'https://www.licor.com/env/support/EddyPro/topics/output-files-full-output.html" \
+
+TIMESTAMP == TIMESTAMP \
+TIMESTAMP_START == created from TIMESTAMP \
+TIMESTAMP_END == created from TIMESTAMP \
+FETCH_70 ==  	x_70% \
+FETCH_80 == NF \
+FETCH_90 == x_90% \
+FETCH_FILTER == NF \
+FETCH_MAX == x_peak \
+CH4 == ch4_mole_fraction \
+CH4_MIXING_RATIO == ch4_mixing_ratio \
+CO2 == co2_mole_fraction \
+CO2_MIXING_RATIO == co2_mixing_ratio \
+FC == co2_flux \
+FCH4 == ch4_flux \
+H2O == h2o_mole_fraction \
+H2O_MIXING_RATIO == h2o_mixing_ratio \
+FH2O == h2o_flux \
+G == shf_Avg.1.	/shf_Avg.2./shf_Avg.3.\
+H == H \
+LE == LE \
+SG == NF\
+SH == H_strg \
+SLE == LE_strg \
+PA == air_pressure \
+RH == RH \
+T_SONIC == sonic_temperature \
+T_SONIC_SIGMA == NF\
+GPP == Needs to be derived\
+NEE == Needs to be derived\
+RECO == Needs to be derived\
+FC_SSITC_TEST == qc_co2_flux\
+FCH4_SSITC_TEST == qc_ch4_flux\
+H_SSITC_TEST == qc_H \
+LE_SSITC_TEST == qc_LE \
+TAU_SSITC_TEST == qc_Tau \
+CO2_SIGMA == co2_var\
+SC == co2_strg\
+SCH4 == ch4_strg\
+U_SIGMA == u_var\
+V_SIGMA == v_var \
+W_SIGMA == w_var \
+WD == wind_dir \
+WD_SIGMA == NF\
+WS == wind_speed\
+WS_MAX == max_wind_speed\
+ZL == X_z_d__L\
+TA == air_temperature\
+VPD == VPD \
+P == NF\
+LW_IN == LW_IN_Avg \
+LW_OUT == LW_OUT_Avg \
+PPFD_IN == PAR_IN_Avg\
+PPFD_OUT == PAR_OUT_Avg\
+SW_IN == SW_IN_Avg\
+SW_OUT == SW_OUT_Avg\
+SWC= SWC_1_1_1\
+TS == TS_2_1_2/ TS_2_2_2\
+WTD == WTD_Avg/ Lvl_m_Avg \
+MO_LENGTH == L \
+TAU == Tau \
+USTAR == u*/u_ \
 
 ```{r pressure, echo=FALSE}
 library(ggplot2)
@@ -113,17 +179,172 @@ ggplot(way3_2018_data, aes(x = HOUR, y = SW_IN_Avg, color = (DOY))) +
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 
-# source: https://www.youtube.com/watch?v=wS95r9JbbB0&t=2336s
-Guidelines from the video:
+## Change the name of the columns
+```{r}
+# Assuming way3_2018_data is your DataFrame
+library(tidyverse)
+way3_2018_data_filtered <- way3_2018_data %>%
+  select(
+    TIMESTAMP_START,
+    TIMESTAMP_END,
+    `x_70_`,
+    `x_90_`,
+    x_peak,
+    ch4_mole_fraction,
+    ch4_mixing_ratio,
+    co2_mole_fraction,
+    co2_mixing_ratio,
+    co2_flux,
+    ch4_flux,
+    h2o_mole_fraction,
+    h2o_mixing_ratio,
+    h2o_flux,
+    #`shf_Avg.1./shf_Avg.2./shf_Avg.3.`,
+    H,
+    LE,
+    #NF,  # Duplicate NF keys are ignored
+    H_strg,
+    LE_strg,
+    air_pressure,
+    RH,
+    sonic_temperature,
+    #NF,  # Duplicate NF keys are ignored
+    #`Needs to be derived`,  # Duplicate "Needs to be derived" are ignored
+    qc_co2_flux,
+    qc_ch4_flux,
+    qc_H,
+    qc_LE,
+    qc_Tau,
+    co2_var,
+    co2_strg,
+    ch4_strg,
+    u_var,
+    v_var,
+    w_var,
+    wind_dir,
+    #NF,  # Duplicate NF keys are ignored
+    wind_speed,
+    max_wind_speed,
+    X_z_d__L,
+    air_temperature,
+    VPD,
+    #NF,  # Duplicate NF keys are ignored
+    LW_IN_Avg,
+    LW_OUT_Avg,
+    PAR_IN_Avg,
+    PAR_OUT_Avg,
+    SW_IN_Avg,
+    SW_OUT_Avg,
+    SWC_1_1_1,
+    #`TS_2_1_2/TS_2_2_2`,
+    #`WTD_Avg/Lvl_m_Avg`,
+    L,
+    Tau
+    #`u*/u_`
+  )
 
-1. Do support list of common variable names (From the table)<br>
-2. Use the exact variable names and the units <br>
-3. Very first on the list, what to do with the data, remove the known values  <br>
-4. U-star filtering of the data  <br>
-5. CSV is a delimited text file that uses a comma to separate values  <br>
-6. The first two column are TIMESTAMP_START and TIMESTAMP_END (ISO time format: YYYYMMDDHHMM e.g., 201810220930)  <br>
-7. Dont convert the scientific notations in timestamps  <br>
-8. An hour column to check the data
+# Rename the filtered columns
+way3_2018_data_f1iltered <- way3_2018_data_filtered %>%
+  rename(
+    TIMESTAMP_START = TIMESTAMP_START,
+    TIMESTAMP_END = TIMESTAMP_END,
+    FETCH_70 = `x_70_`,
+    FETCH_90 = `x_90_`,
+    FETCH_MAX = x_peak,
+    CH4 = ch4_mole_fraction,
+    CH4_MIXING_RATIO = ch4_mixing_ratio,
+    CO2 = co2_mole_fraction,
+    CO2_MIXING_RATIO = co2_mixing_ratio,
+    FC = co2_flux,
+    FCH4 = ch4_flux,
+    H2O = h2o_mole_fraction,
+    H2O_MIXING_RATIO = h2o_mixing_ratio,
+    FH2O = h2o_flux,
+    #G = `shf_Avg.1./shf_Avg.2./shf_Avg.3.`,
+    H = H,
+    LE = LE,
+    #SG = NF,  # Duplicate NF keys are ignored
+    SH = H_strg,
+    SLE = LE_strg,
+    PA = air_pressure,
+    RH = RH,
+    T_SONIC = sonic_temperature,
+    #T_SONIC_SIGMA = NF,  # Duplicate NF keys are ignored
+    #GPP = `Needs to be derived`,  # Duplicate "Needs to be derived" are ignored
+    #NEE = `Needs to be derived`,  # Duplicate "Needs to be derived" are ignored
+    #RECO = `Needs to be derived`,  # Duplicate "Needs to be derived" are ignored
+    FC_SSITC_TEST = qc_co2_flux,
+    FCH4_SSITC_TEST = qc_ch4_flux,
+    H_SSITC_TEST = qc_H,
+    LE_SSITC_TEST = qc_LE,
+    TAU_SSITC_TEST = qc_Tau,
+    CO2_SIGMA = co2_var,
+    SC = co2_strg,
+    SCH4 = ch4_strg,
+    U_SIGMA = u_var,
+    V_SIGMA = v_var,
+    W_SIGMA = w_var,
+    WD = wind_dir,
+    #WD_SIGMA = NF,  # Duplicate NF keys are ignored
+    WS = wind_speed,
+    WS_MAX = max_wind_speed,
+    ZL = X_z_d__L,
+    TA = air_temperature,
+    VPD = VPD,
+    #P = NF,  # Duplicate NF keys are ignored
+    LW_IN = LW_IN_Avg,
+    LW_OUT = LW_OUT_Avg,
+    PPFD_IN = PAR_IN_Avg,
+    PPFD_OUT = PAR_OUT_Avg,
+    SW_IN = SW_IN_Avg,
+    SW_OUT = SW_OUT_Avg,
+    SWC = SWC_1_1_1,
+    #TS = `TS_2_1_2/TS_2_2_2`,
+    #WTD = `WTD_Avg/Lvl_m_Avg`,
+    MO_LENGTH = L,
+    TAU = Tau
+    #USTAR = `u*/u_`
+  )
+
+```
+# Export the data
+```{r}
+# Create the directory if it doesn't exist
+# Convert TIMESTAMP_START and TIMESTAMP_END to character type
+way3_2018_data_f1iltered$TIMESTAMP_START <- as.character(way3_2018_data_f1iltered$TIMESTAMP_START)
+way3_2018_data_f1iltered$TIMESTAMP_END <- as.character(way3_2018_data_f1iltered$TIMESTAMP_END)
+
+# Replace NaN and NA values with -9999
+way3_2018_data_f1iltered[is.na(way3_2018_data_f1iltered)] <- -9999
+# Define custom function to handle NaN values in data frames
+is.nan.data.frame <- function(x) {
+  do.call(cbind, lapply(x, is.nan))
+}
+# Replace NaN with -9999
+way3_2018_data_f1iltered[is.nan.data.frame(way3_2018_data_f1iltered)] <- -9999
+
+
+dir.create("C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/AFguidedSubmitted/Way3", showWarnings = FALSE)
+
+# Specify the file path for saving
+file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/AFguidedSubmitted/Way3/way3_2018_data.csv"
+
+# Save the dataframe
+write.csv(way3_2018_data_f1iltered, file = file_path, row.names = FALSE)
+
+# Confirmation message
+cat("way3_2018_data saved successfully.\n")
+
+
+```
+
+# Before saving the files these information needs to be checked 
+Precipitation comes from way 4 so get the precipitation data from way 4 for each year and put them in way 4
+The G data that we obtain 
+Create a fetch filter column where "You can make this by using ~270+/-85 degrees as 1 (keep it) and other wind directions as 0 (discard it)"
+We have a how-to, for G, I'll look for it if you don't remember seeing it
+
+
 
 # Read all way 3 and way 4 files 
 Check if they have same number of columns
@@ -235,19 +456,107 @@ results <- list(
 print(results)
 
 ```
-# Export the data
+
 ```{r}
-# Create the directory if it doesn't exist
-dir.create("C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/AFguidedSubmitted/Way3", showWarnings = FALSE)
+# Define the file path
+file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Variable/flux-met_processing_variables_20240612.csv"
 
-# Specify the file path for saving
-file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/AFguidedSubmitted/Way3/way3_2018_data.csv"
+# Read the CSV file using read.csv
+data <- read.csv(file_path)
 
-# Save the dataframe
-write.csv(way3_2018_data, file = file_path, row.names = FALSE)
-
-# Confirmation message
-cat("way3_2018_data saved successfully.\n")
-
+# Print the first few rows of the data to verify
+#head(data)
+nrow(data)
 
 ```
+
+
+TIMESTAMP_START
+TIMESTAMP_END
+TIMESTAMP
+way3_data[[1]], 2018
+way3_data[[2]], 2019
+way3_data[[3]], 2020
+way3_data[[4]], 2021
+way3_data[[5]], 2022
+way3_data[[6]], 2023
+
+
+way4_data[[1]], 2018
+way4_data[[2]], 2019
+way4_data[[3]], 2020
+way4_data[[4]], 2021
+way4_data[[5]], 2022
+way4_data[[6]], 2023
+
+
+```{r}
+#colnames(way3_data[[1]])
+```
+
+
+
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(openxlsx)
+
+# Define the path to the Excel file
+file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Variable/flux-met_processing_variables_20240612.xlsx"
+
+# Read the third and fourth sheets
+sheet3 <- read_excel(file_path, sheet = 3)
+sheet4 <- read_excel(file_path, sheet = 4)
+
+# Display the first few rows of both sheets to understand their structure
+print("Sheet 3:")
+print(head(sheet3))
+
+print("\nSheet 4:")
+print(head(sheet4))
+
+# Merge the sheets based on the first column
+merged_data <- merge(sheet3, sheet4, by = names(sheet3)[1])
+
+# Display the merged data
+print("Merged Data:")
+print(head(merged_data))
+
+View(merged_data)
+
+# Save the merged data to a new Excel file
+output_file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Variable/merged_data.xlsx"
+write.xlsx(merged_data, output_file_path)
+
+print(paste("Merged data saved to:", output_file_path))
+
+```
+## Units file with the 
+
+```{r}
+# Define the file paths
+file_path_met <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Units_Way3/Way3_Met_units.dat"
+file_path_ec <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Units_Way3/Way3_EC_EC_units.dat"
+file_path_soil <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Units_Way3/Way3_Soil_SOIL_units.dat"
+
+# Read the files into different variables
+way3_met_units <- read.csv(file_path_met, header = FALSE, sep = ",")
+way3_ec_ec_units <- read.csv(file_path_ec, header = FALSE, sep = ",")
+way3_soil_soil_units <- read.csv(file_path_soil, header = FALSE, sep = ",")
+
+# Print the number of columns and column names for each file
+cat("Way3_Met_units:\n")
+cat("Number of columns:", ncol(way3_met_units), "\n")
+print(colnames(way3_met_units))
+
+cat("\nWay3_EC_EC_units:\n")
+cat("Number of columns:", ncol(way3_ec_ec_units), "\n")
+print(colnames(way3_ec_ec_units))
+
+cat("\nWay3_Soil_SOIL_units:\n")
+cat("Number of columns:", ncol(way3_soil_soil_units), "\n")
+print(colnames(way3_soil_soil_units))
+```
+## Saving the files  
+## 
