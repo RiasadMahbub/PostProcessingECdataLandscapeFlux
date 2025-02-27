@@ -8,12 +8,12 @@ library(dplyr)
 library(lubridate)
 
 # Define the directories
-way3_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Way3"
-way4_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/Way4"
+way3_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalProcessedData/MasterFiles/Way3"
+way4_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalProcessedData/MasterFiles/Way4"
 
 # Define the files to read
-way3_files_to_read <- c("Way3 2018.csv", "Way3 2019.csv", "Way3 2020.csv", "Way3 2021.csv", "Way3 2022.csv", "Way3 2023.csv", "Way3 2024.csv")
-way4_files_to_read <- c("Way4 2018.csv", "Way4 2019.csv", "Way4 2020.csv", "Way4 2021.csv", "Way4 2022.csv", "Way4 2023.csv", "Way4 2024.csv")
+way3_files_to_read <- c("Way3_2018.csv", "Way3_2019.csv", "Way3_2020.csv", "Way3_2021.csv", "Way3_2022.csv", "Way3_2023.csv", "Way3_2024.csv")
+way4_files_to_read <- c("Way4_2018.csv", "Way4_2019.csv", "Way4_2020.csv", "Way4_2021.csv", "Way4_2022.csv", "Way4_2023.csv", "Way4_2024.csv")
 
 # Read and process Way3 and Way4 data
 way3_data <- lapply(way3_files_to_read, function(filename) {
@@ -29,53 +29,13 @@ way4_data <- lapply(way4_files_to_read, function(filename) {
 })
 
 
-##### 2022, 2023, and 2024 has -9999 instead of NaN
-# Replace -9999 with NaN in the 5th and 6th elements of the list
-# Convert all columns to numeric before applying the ifelse function
-
-way3_data[[5]] <- as.data.frame(lapply(way3_data[[5]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way3_data[[6]] <- as.data.frame(lapply(way3_data[[6]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way3_data[[7]] <- as.data.frame(lapply(way3_data[[7]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[5]] <- as.data.frame(lapply(way4_data[[5]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[6]] <- as.data.frame(lapply(way4_data[[6]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[7]] <- as.data.frame(lapply(way4_data[[7]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-#####Rename Way 4 water table depth column WTD_Avg as Lvl_m_Avg
-# Rename WTD_Avg to Lvl_m_Avg in Way4 data
-# Loop through each dataframe in way4_data and rename WTD_Avg to Lvl_m_Avg
-way4_data <- lapply(way4_data, function(df) {
-  # Drop any columns named "Lvl_m_Avg"
-  df <- df[, !colnames(df) %in% "Lvl_m_Avg", drop = FALSE]
-  
-  # Rename "WTD_Avg" to "Lvl_m_Avg"
-  colnames(df) <- gsub("WTD_Avg", "Lvl_m_Avg", colnames(df))
-  
-  return(df)
-})
-
 
 
 
 ###UNITS ROWS######
+####Since we made change in the data now we do not have the units of the filtered rows####
 # Step 1: Extract unit row and store separately
-unit_row <- way3_data[[6]][1, ] # Assuming the unit row is in the 6th list element
+#unit_row <- way3_data[[6]][1, ] # Assuming the unit row is in the 6th list element
 # Remove the first row from the 5th and 6th data frames
 # Step 2: Filter and rename columns
 filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", "x_90_", "x_peak", 
@@ -85,97 +45,50 @@ filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", 
                       "qc_co2_flux", "qc_ch4_flux", "qc_H", "qc_LE", "qc_Tau", "co2_var", "co2_strg", 
                       "ch4_strg", "u_var", "v_var", "w_var", "wind_dir", "wind_speed", "max_wind_speed", 
                       "X_z_d__L", "air_temperature", "VPD", "LW_IN_Avg", "LW_OUT_Avg", "PAR_IN_Avg", 
-                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_")
+                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_", 
+                      "canopy_height",	"LAI_corrected",	"LAI_corrected_gapfilled", "canopy_height_gapfilled")
 
 # Filter and rename
 # Filter `unit_row` to include only the columns in `filtered_columns`
-filtered_unit_row <- unit_row[names(unit_row) %in% filtered_columns]
+unit_df <- read.csv("C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalProcessedData/MasterFiles/unitdf/Unit_df.csv", stringsAsFactors = FALSE)
+
+filtered_unit_row <- unit_df[names(unit_df) %in% filtered_columns]
 
 # View the filtered unit row
 print(filtered_unit_row)
 
-
-#### Get rid of the unit rows for 2022 to 2024####
-way3_data[[5]] <- way3_data[[5]][-1, ]
-way3_data[[6]] <- way3_data[[6]][-1, ]
-way3_data[[7]] <- way3_data[[7]][-1, ]
-
-way4_data[[5]] <- way4_data[[5]][-1, ]
-way4_data[[6]] <- way4_data[[6]][-1, ]
-way4_data[[7]] <- way4_data[[7]][-1, ]
-
-
-# Print the first row of the TIMESTAMP column
-cat("First row of TIMESTAMP column (way3_data[[5]]):", way3_data[[5]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way3_data[[6]]):", way3_data[[6]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way3_data[[7]]):", way3_data[[7]]$TIMESTAMP[1], "\n")
-
-cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way4_data[[6]]):", way4_data[[6]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way4_data[[7]]):", way4_data[[7]]$TIMESTAMP[1], "\n")
-
-# # Convert TIMESTAMP to a consistent format
-# way4_data[[5]]$TIMESTAMP <- as.character(mdy_hm(way4_data[[5]]$TIMESTAMP))
-
-# Print the first row to verify the change
-cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
-
-# Function to check and convert TIMESTAMP
-convert_timestamp <- function(timestamp) {
-  # If the TIMESTAMP is already in the correct format, return it as is
-  if (grepl("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$", timestamp)) {
-    return(timestamp)
-  } else {
-    # Otherwise, attempt to convert using mdy_hm
-    return(as.character(mdy_hm(timestamp)))
-  }
-}
-
-# Apply the conversion to each TIMESTAMP column
-way3_data[[5]]$TIMESTAMP <- sapply(way3_data[[5]]$TIMESTAMP, convert_timestamp)
-way3_data[[6]]$TIMESTAMP <- sapply(way3_data[[6]]$TIMESTAMP, convert_timestamp)
-way4_data[[5]]$TIMESTAMP <- sapply(way4_data[[5]]$TIMESTAMP, convert_timestamp)
-way4_data[[6]]$TIMESTAMP <- sapply(way4_data[[6]]$TIMESTAMP, convert_timestamp)
-
-# Print the first rows to verify the changes
-cat("First row of TIMESTAMP column (way3_data[[5]]):", way3_data[[5]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way3_data[[6]]):", way3_data[[6]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
-cat("First row of TIMESTAMP column (way4_data[[6]]):", way4_data[[6]]$TIMESTAMP[1], "\n")
-
+way4_data[[1]]$air_pressure
+way3_data[[1]]$air_pressure
 ######################################
 ##########AIRPRESSURE################
+###I think both of them have air pressure##
 ######################################
-for (i in 1:7) {
-  # Select only TIMESTAMP and air_pressure from way4_data
-  way4_subset <- way4_data[[i]] %>%
-    select(TIMESTAMP, air_pressure)
-  
-  # Perform a left join with way3_data based on TIMESTAMP
-  way3_data[[i]] <- way3_data[[i]] %>%
-    left_join(way4_subset, by = "TIMESTAMP")
-}
-way3_data[[1]]$air_pressure.y
+# for (i in 1:7) {
+#   # Select only TIMESTAMP and air_pressure from way4_data
+#   way4_subset <- way4_data[[i]] %>%
+#     select(TIMESTAMP, air_pressure)
+#   
+#   # Perform a left join with way3_data based on TIMESTAMP
+#   way3_data[[i]] <- way3_data[[i]] %>%
+#     left_join(way4_subset, by = "TIMESTAMP")
+# }
+# way3_data[[1]]$air_pressure.y
 
 # Function to process each dataset (for TIMESTAMP and derived columns)
+### Creates Hour/Month/DOY, TIMESTAMP, TIMESTAMP_START, TIMESTAMP_END
 process_data <- function(data) {
   # Create TIMESTAMP_START and TIMESTAMP_END columns
   data <- cbind(TIMESTAMP_START = NA, TIMESTAMP_END = NA, data)
-  
   # Convert TIMESTAMP column to POSIXct format
   data$TIMESTAMP <- ymd_hms(data$TIMESTAMP)
-  
   # Create TIMESTAMP_START in the desired format
   data$TIMESTAMP_START <- format(data$TIMESTAMP, "%Y%m%d%H%M")
-  
   # Create TIMESTAMP_END by adding 30 minutes to TIMESTAMP and formatting it
   data$TIMESTAMP_END <- format(data$TIMESTAMP + minutes(30), "%Y%m%d%H%M")
-  
   # Create additional columns: HOUR, MONTH, DAY_OF_YEAR
   data$HOUR <- hour(data$TIMESTAMP)
   data$MONTH <- month(data$TIMESTAMP)
   data$DOY <- yday(data$TIMESTAMP)
-  
   return(data)
 }
 
@@ -185,6 +98,9 @@ way4_processed_data <- lapply(way4_data, process_data)
 unit_row_processed<-process_data(unit_row)
 
 
+#####################################
+########### Multiple possible names
+####################################
 # Mapping of equivalent column names
 column_mapping <- list(
   "x_70_" = c("x_70."),
@@ -195,7 +111,7 @@ column_mapping <- list(
   "X_z_d__L" = c("X.z.d..L"),
   "air_temperature" = c("Tair"),
   "u_" = c("ustar"),
-  "SW_IN_Avg" = c( "Rg")  # Multiple possible names
+  "SW_IN_Avg" = c( "Rg")  
 )
 
 # Function to apply column name mapping
@@ -830,7 +746,7 @@ plot_way_data <- function(way_data, base_dir, way_name) {
   })
   
   # List of years for processing
-  years <- c("2018", "2019", "2020", "2021", "2023", "2024")
+  years <- c("2018", "2019", "2020","2022", "2021", "2023", "2024")
   
   # Loop through each year
   for (year in years) {
