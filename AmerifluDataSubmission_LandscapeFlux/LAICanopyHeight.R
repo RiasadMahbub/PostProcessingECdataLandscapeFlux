@@ -50,8 +50,7 @@ Way42019CHLAI <- filtered_data20182020 %>%
 Way42020CHLAI <- filtered_data20182020 %>%
   filter(grepl("^W4_", Field_Year) & Year == 2020) %>%
   select(-Year, -Field_Year)
-
-
+Way42020CHLAI <- Way42020CHLAI[as.Date(Way42020CHLAI$Date) <= as.Date("2020-08-14"), ]
 #################2021################
 #############LAI2021####################
 # Define file path
@@ -452,13 +451,14 @@ Way42018CHLAI
 library(dplyr)
 library(zoo)  # For na.approx function
 
-# Define the gapfill_and_interpolate function
+library(zoo)
+
 gapfill_and_interpolate <- function(df) {
   # Ensure the date column is in POSIXct format
-  df$date <- as.POSIXct(df$date, format = "%Y-%m-%d %H:%M:%S")
+  df$date <- as.POSIXct(df$date, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
   
   # Create a complete sequence of datetime values with 30-minute intervals
-  full_seq <- seq.POSIXt(min(df$date), max(df$date), by = "30 min")
+  full_seq <- seq.POSIXt(min(df$date), max(df$date), by = "30 min", tz = "UTC")
   
   # Create a dataframe with the complete datetime sequence
   full_df <- data.frame(date = full_seq)
@@ -466,7 +466,15 @@ gapfill_and_interpolate <- function(df) {
   # Merge the complete sequence with the original dataframe
   merged_df <- merge(full_df, df, by = "date", all.x = TRUE)
   
+  # Ensure the columns are numeric and replace non-finite values with NA
+  merged_df$LAI_corrected <- as.numeric(merged_df$LAI_corrected)
+  merged_df$canopy_height <- as.numeric(merged_df$canopy_height)
+  
+  merged_df$LAI_corrected[!is.finite(merged_df$LAI_corrected)] <- NA
+  merged_df$canopy_height[!is.finite(merged_df$canopy_height)] <- NA
+  
   # Perform linear interpolation on the LAI_corrected and canopy_height columns
+  # No maxgap argument means all gaps in the middle will be interpolated
   merged_df$LAI_corrected_gapfilled <- na.approx(merged_df$LAI_corrected, na.rm = FALSE)
   merged_df$canopy_height_gapfilled <- na.approx(merged_df$canopy_height, na.rm = FALSE)
   
@@ -580,135 +588,135 @@ plot(Way42019CHLAI$Date, Way42019CHLAI$Avg_Canopy_Height,
      type = "p")
 
 # Plot for Way42018CHLAI
-plot(Way42018CHLAI$Date, Way42018CHLAI$Avg_Canopy_Height,
+plot(Way3CHLAIlist$Way32024CHLAI_processed$TIMESTAMP, Way3CHLAIlist$Way32024CHLAI_processed$canopy_height_gapfilled,
      main = "Avg Canopy Height vs. Date (Way42018CHLAI)",
      xlab = "Date",
      ylab = "Average Canopy Height",
      type = "p")
 
 
-
-
-#######OLD LAI CANOPY HEIGHT ###############
-################################
-### Canopy height dataset#######
-################################
-
-# Specify the directory#######
-directoryw3 <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/CanopyHeight/Way3"
-directoryw4 <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/CanopyHeight/Way4"
-# List all CSV and Excel files in the directory
-CHfilesw3 <- list.files(path = directoryw3, pattern = "\\.(csv|xlsx|xls)$", full.names = TRUE)
-# List all CSV and Excel files in the directory
-CHfilesw4 <- list.files(path = directoryw4, pattern = "\\.(csv|xlsx|xls)$", full.names = TRUE)
-# Function to read files based on their format
-read_data <- function(file) {
-  if (grepl("\\.csv$", file, ignore.case = TRUE)) {
-    return(read.csv(file))
-  } else if (grepl("\\.xlsx$", file, ignore.case = TRUE)) {
-    return(read_excel(file))
-  } else if (grepl("\\.xls$", file, ignore.case = TRUE)) {
-    return(read_excel(file))  # read_excel supports both .xls and .xlsx
-  } else {
-    warning(paste("Unsupported file format:", file))
-    return(NULL)
-  }
-}
-
-# Read all files
-CHDLWay3 <- lapply(CHfilesw3, read_data)
-CHDLWay4 <- lapply(CHfilesw4, read_data)
-
-
-# Function to standardize dates
-standardize_date <- function(date_str) {
-  # Remove leading/trailing whitespace
-  date_str <- trimws(date_str)
-  
-  # Handle different formats
-  if (grepl("-", date_str) && grepl(":", date_str)) {
-    # Format: YYYY-MM-DD HH:MM:SS+00:00
-    # Handle timezone offset by stripping it and parsing as UTC
-    dt <- as.POSIXct(sub("\\+00:00$", "", date_str), format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-    return(format(dt, "%Y-%m-%d %H:%M:%S"))
-  } else if (grepl("-", date_str)) {
-    # Format: YYYY-MM-DD
-    dt <- as.Date(date_str, format = "%Y-%m-%d")
-    return(paste(format(dt, "%Y-%m-%d"), "00:00:00"))
-  } else if (grepl("/", date_str)) {
-    # Format: MM/DD/YYYY
-    dt <- as.Date(date_str, format = "%m/%d/%Y")
-    return(paste(format(dt, "%Y-%m-%d"), "00:00:00"))
-  } else {
-    stop("Unsupported date format: ", date_str)
-  }
-}
-
-# Function to update dates in a dataframe
-update_dates_in_df <- function(df) {
-  # Check if the date column exists (case-insensitive)
-  date_col <- grep("^date$", colnames(df), ignore.case = TRUE, value = TRUE)
-  
-  if (length(date_col) > 0) {
-    # Apply the standardize_date function to the date column
-    df[[date_col]] <- sapply(df[[date_col]], standardize_date)
-  }
-  return(df)
-}
-
-# Apply the update_dates_in_df function to each dataframe in the list
-CHDLWay3 <- lapply(CHDLWay3, update_dates_in_df)
-CHDLWay4 <- lapply(CHDLWay4, update_dates_in_df)
-
-# Print the first 2 rows of each dataframe to verify
-for (i in 1:length(CHDLWay4)) {
-  print(head(CHDLWay4[[i]], 2))  # Print the first 2 rows of each data frame
-}
-
-library(zoo)
-# Function to gap-fill datetime and interpolate canopy_height
-# Function to gap-fill datetime and interpolate canopy_height
-gapfill_and_interpolate <- function(df) {
-  # Ensure the date column is in POSIXct format
-  df$date <- as.POSIXct(df$date, format = "%Y-%m-%d %H:%M:%S")
-  
-  # Create a complete sequence of datetime values with 30-minute intervals
-  full_seq <- seq.POSIXt(min(df$date), max(df$date), by = "30 min")
-  
-  # Create a dataframe with the complete datetime sequence
-  full_df <- data.frame(date = full_seq)
-  
-  # Merge the complete sequence with the original dataframe
-  merged_df <- merge(full_df, df, by = "date", all.x = TRUE)
-  
-  # Perform linear interpolation on the canopy_height column
-  merged_df$canopy_height <- na.approx(merged_df$canopy_height, na.rm = FALSE)
-  
-  # Rename the "date" column to "TIMESTAMP"
-  colnames(merged_df)[colnames(merged_df) == "date"] <- "TIMESTAMP"
-  
-  return(merged_df)
-}
-
-# Apply the gapfill_and_interpolate function to each dataframe in the list
-CHDLWay3 <- lapply(CHDLWay3, gapfill_and_interpolate)
-CHDLWay4 <- lapply(CHDLWay4, gapfill_and_interpolate)
-# Print the first few rows of each dataframe to verify
-for (i in 1:length(CHDLWay3)) {
-  print(head(CHDLWay3[[i]], 10))  # Print the first 10 rows of each dataframe
-}
-
-plot(CHDLWay3[[2]]$TIMESTAMP, CHDLWay3[[2]]$canopy_height)
-plot(CHDLWay3[[3]]$TIMESTAMP, CHDLWay3[[3]]$canopy_height)
-plot(CHDLWay3[[4]]$TIMESTAMP, CHDLWay3[[4]]$canopy_height)
-plot(CHDLWay3[[5]]$TIMESTAMP, CHDLWay3[[5]]$canopy_height)
-plot(CHDLWay3[[6]]$TIMESTAMP, CHDLWay3[[6]]$canopy_height)
-
-plot(CHDLWay4[[2]]$TIMESTAMP, CHDLWay4[[2]]$canopy_height)
-plot(CHDLWay4[[3]]$TIMESTAMP, CHDLWay4[[3]]$canopy_height)
-plot(CHDLWay4[[1]]$TIMESTAMP, CHDLWay4[[1]]$canopy_height)
-
-######## LE fix #######
-
-
-
+# 
+# 
+# #######OLD LAI CANOPY HEIGHT ###############
+# ################################
+# ### Canopy height dataset#######
+# ################################
+# 
+# # Specify the directory#######
+# directoryw3 <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/CanopyHeight/Way3"
+# directoryw4 <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/CanopyHeight/Way4"
+# # List all CSV and Excel files in the directory
+# CHfilesw3 <- list.files(path = directoryw3, pattern = "\\.(csv|xlsx|xls)$", full.names = TRUE)
+# # List all CSV and Excel files in the directory
+# CHfilesw4 <- list.files(path = directoryw4, pattern = "\\.(csv|xlsx|xls)$", full.names = TRUE)
+# # Function to read files based on their format
+# read_data <- function(file) {
+#   if (grepl("\\.csv$", file, ignore.case = TRUE)) {
+#     return(read.csv(file))
+#   } else if (grepl("\\.xlsx$", file, ignore.case = TRUE)) {
+#     return(read_excel(file))
+#   } else if (grepl("\\.xls$", file, ignore.case = TRUE)) {
+#     return(read_excel(file))  # read_excel supports both .xls and .xlsx
+#   } else {
+#     warning(paste("Unsupported file format:", file))
+#     return(NULL)
+#   }
+# }
+# 
+# # Read all files
+# CHDLWay3 <- lapply(CHfilesw3, read_data)
+# CHDLWay4 <- lapply(CHfilesw4, read_data)
+# 
+# 
+# # Function to standardize dates
+# standardize_date <- function(date_str) {
+#   # Remove leading/trailing whitespace
+#   date_str <- trimws(date_str)
+#   
+#   # Handle different formats
+#   if (grepl("-", date_str) && grepl(":", date_str)) {
+#     # Format: YYYY-MM-DD HH:MM:SS+00:00
+#     # Handle timezone offset by stripping it and parsing as UTC
+#     dt <- as.POSIXct(sub("\\+00:00$", "", date_str), format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+#     return(format(dt, "%Y-%m-%d %H:%M:%S"))
+#   } else if (grepl("-", date_str)) {
+#     # Format: YYYY-MM-DD
+#     dt <- as.Date(date_str, format = "%Y-%m-%d")
+#     return(paste(format(dt, "%Y-%m-%d"), "00:00:00"))
+#   } else if (grepl("/", date_str)) {
+#     # Format: MM/DD/YYYY
+#     dt <- as.Date(date_str, format = "%m/%d/%Y")
+#     return(paste(format(dt, "%Y-%m-%d"), "00:00:00"))
+#   } else {
+#     stop("Unsupported date format: ", date_str)
+#   }
+# }
+# 
+# # Function to update dates in a dataframe
+# update_dates_in_df <- function(df) {
+#   # Check if the date column exists (case-insensitive)
+#   date_col <- grep("^date$", colnames(df), ignore.case = TRUE, value = TRUE)
+#   
+#   if (length(date_col) > 0) {
+#     # Apply the standardize_date function to the date column
+#     df[[date_col]] <- sapply(df[[date_col]], standardize_date)
+#   }
+#   return(df)
+# }
+# 
+# # Apply the update_dates_in_df function to each dataframe in the list
+# CHDLWay3 <- lapply(CHDLWay3, update_dates_in_df)
+# CHDLWay4 <- lapply(CHDLWay4, update_dates_in_df)
+# 
+# # Print the first 2 rows of each dataframe to verify
+# for (i in 1:length(CHDLWay4)) {
+#   print(head(CHDLWay4[[i]], 2))  # Print the first 2 rows of each data frame
+# }
+# 
+# library(zoo)
+# # Function to gap-fill datetime and interpolate canopy_height
+# # Function to gap-fill datetime and interpolate canopy_height
+# gapfill_and_interpolate <- function(df) {
+#   # Ensure the date column is in POSIXct format
+#   df$date <- as.POSIXct(df$date, format = "%Y-%m-%d %H:%M:%S")
+#   
+#   # Create a complete sequence of datetime values with 30-minute intervals
+#   full_seq <- seq.POSIXt(min(df$date), max(df$date), by = "30 min")
+#   
+#   # Create a dataframe with the complete datetime sequence
+#   full_df <- data.frame(date = full_seq)
+#   
+#   # Merge the complete sequence with the original dataframe
+#   merged_df <- merge(full_df, df, by = "date", all.x = TRUE)
+#   
+#   # Perform linear interpolation on the canopy_height column
+#   merged_df$canopy_height <- na.approx(merged_df$canopy_height, na.rm = FALSE)
+#   
+#   # Rename the "date" column to "TIMESTAMP"
+#   colnames(merged_df)[colnames(merged_df) == "date"] <- "TIMESTAMP"
+#   
+#   return(merged_df)
+# }
+# 
+# # Apply the gapfill_and_interpolate function to each dataframe in the list
+# CHDLWay3 <- lapply(CHDLWay3, gapfill_and_interpolate)
+# CHDLWay4 <- lapply(CHDLWay4, gapfill_and_interpolate)
+# # Print the first few rows of each dataframe to verify
+# for (i in 1:length(CHDLWay3)) {
+#   print(head(CHDLWay3[[i]], 10))  # Print the first 10 rows of each dataframe
+# }
+# 
+# plot(CHDLWay3[[2]]$TIMESTAMP, CHDLWay3[[2]]$canopy_height)
+# plot(CHDLWay3[[3]]$TIMESTAMP, CHDLWay3[[3]]$canopy_height)
+# plot(CHDLWay3[[4]]$TIMESTAMP, CHDLWay3[[4]]$canopy_height)
+# plot(CHDLWay3[[5]]$TIMESTAMP, CHDLWay3[[5]]$canopy_height)
+# plot(CHDLWay3[[6]]$TIMESTAMP, CHDLWay3[[6]]$canopy_height)
+# 
+# plot(CHDLWay4[[2]]$TIMESTAMP, CHDLWay4[[2]]$canopy_height)
+# plot(CHDLWay4[[3]]$TIMESTAMP, CHDLWay4[[3]]$canopy_height)
+# plot(CHDLWay4[[1]]$TIMESTAMP, CHDLWay4[[1]]$canopy_height)
+# 
+# ######## LE fix #######
+# 
+# 
+# 

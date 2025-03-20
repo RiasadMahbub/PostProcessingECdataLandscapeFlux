@@ -130,7 +130,66 @@ way4_wtd_uni_t <- lapply(way4_wtd_uni_t, convert_cm_to_m)
 names(way3_wtd_uni_t)
 names(way4_wtd_uni_t)
 
+##########################2020 and 2021 are in 5/15 minutes resolution 
+# Function to aggregate data into 30-minute intervals
 
+# Function to aggregate data into 30-minute intervals
+aggregate_to_30min <- function(df, timestamp_col, value_cols) {
+  df <- df %>%
+    mutate(
+      !!sym(timestamp_col) := as.POSIXct(!!sym(timestamp_col), format="%Y-%m-%d %H:%M:%S", tz="UTC"),
+      Rounded_Time = as.POSIXct(format(!!sym(timestamp_col), "%Y-%m-%d %H:%M:00"), tz="UTC")
+    ) %>%
+    mutate(
+      Rounded_Time = case_when(
+        as.numeric(format(Rounded_Time, "%M")) < 30 ~ as.POSIXct(format(Rounded_Time, "%Y-%m-%d %H:00:00"), tz="UTC"),
+        TRUE ~ as.POSIXct(format(Rounded_Time, "%Y-%m-%d %H:30:00"), tz="UTC")
+      )
+    ) %>%
+    group_by(Rounded_Time) %>%
+    summarise(across(all_of(value_cols), mean, na.rm = TRUE), .groups = "drop") %>%
+    rename(TIMESTAMP = Rounded_Time)  # Rename column back to TIMESTAMP
+  
+  return(df)
+}
+
+# Example usage
+way3_wtd_uni_t$Way3_UnileverTowerStation_2020 <- aggregate_to_30min(
+  way3_wtd_uni_t$Way3_UnileverTowerStation_2020,
+  timestamp_col = "TIMESTAMP",
+  value_cols = c("wt_corr_AVG_cm_fixedBias")  # Replace with actual column names
+)
+
+# Example usage
+way3_wtd_uni_t$Way3_UnileverTowerStation_2021 <- aggregate_to_30min(
+  way3_wtd_uni_t$Way3_UnileverTowerStation_2021,
+  timestamp_col = "TIMESTAMP",
+  value_cols = c("wt_corr_AVG_cm_fixedBias")  # Replace with actual column names
+)
+
+plot(way3_wtd_uni_t$Way3_UnileverTowerStation_2020$TIMESTAMP, way3_wtd_uni_t$Way3_UnileverTowerStation_2020$wt_corr_AVG_cm_fixedBias)
+plot(way3_wtd_uni_t$Way3_UnileverTowerStation_2021$TIMESTAMP, way3_wtd_uni_t$Way3_UnileverTowerStation_2021$wt_corr_AVG_cm_fixedBias)
+
+
+# Function to check if timestamps are 30-minute intervals
+check_time_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Adjust format if necessary
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  all(time_diff == 1800)  # 1800 seconds = 30 minutes
+}
+
+# Function to find the minimum time interval in a dataframe
+find_min_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Convert to POSIXct
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  return(min(time_diff, na.rm = TRUE))  # Return the minimum interval
+}
+
+# Check each dataset in way3_wtd_uni_t
+for (i in seq_along(way3_wtd_uni_t)) {
+  cat("Checking Way3 WTD Data", i, ":", check_time_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "\n")
+  cat("Minimum interval in Way3 WTD Data", i, ":", find_min_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "seconds\n")
+}
 
 
 # Define the output directory
@@ -161,12 +220,14 @@ save_data_list <- function(data_list, output_dir) {
 # Save data frames from both lists
 save_data_list(way3_wtd_uni_t, output_dir)
 save_data_list(way4_wtd_uni_t, output_dir)
-
-
 # Load necessary library
 library(base)
 
+#####################################
+#####################################
 # Define the directories
+#######################################
+########################################
 way3_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/Masterfiles/Way3"
 way4_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/Masterfiles/Way4"
 
@@ -187,23 +248,33 @@ way4_data <- lapply(way4_files_to_read, function(filename) {
   #apply_column_mapping(data) # Apply column name mapping
 })
 
-#####Rename Way 4 water table depth column WTD_Avg as Lvl_m_Avg
-# Rename WTD_Avg to Lvl_m_Avg in Way4 data
-# Loop through each dataframe in way4_data and rename WTD_Avg to Lvl_m_Avg
-way4_data <- lapply(way4_data, function(df) {
-  # Drop any columns named "Lvl_m_Avg"
-  df <- df[, !colnames(df) %in% "Lvl_m_Avg", drop = FALSE]
-  
-  # Rename "WTD_Avg" to "Lvl_m_Avg"
-  colnames(df) <- gsub("WTD_Avg", "Lvl_m_Avg", colnames(df))
-  
-  return(df)
-})
-
 ###UNITS ROWS######
 # Step 1: Extract unit row and store separately
 unit_row <- way3_data[[6]][1, ] # Assuming the unit row is in the 6th list element
+column_mapping <- list(
+  "x_70_" = c("x_70."),
+  "x_90_" = c("x_90."),
+  "co2_flux" = c("NEE"),
+  "RH" = c("rH"),
+  "wind_dir" = c("WD_EC"),
+  "X_z_d__L" = c("X.z.d..L"),
+  "air_temperature" = c("Tair"),
+  "u_" = c("ustar"),
+  "SW_IN_Avg" = c( "Rg")  
+)
+# Function to apply column name mapping
+apply_column_mapping <- function(data) {
+  for (old_name in names(column_mapping)) {
+    new_name <- column_mapping[[old_name]]
+    if (new_name %in% names(data) && !old_name %in% names(data)) {
+      names(data)[names(data) == new_name] <- old_name
+    }
+  }
+  return(data)
+}
 
+
+unit_row<-apply_column_mapping(unit_row)
 # Filter and rename
 filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", "x_90_", "x_peak", 
                       "ch4_mole_fraction", "ch4_mixing_ratio", "co2_mole_fraction", "co2_mixing_ratio", 
@@ -211,14 +282,15 @@ filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", 
                       "H", "LE", "H_strg", "LE_strg", "air_pressure", "RH", "sonic_temperature", 
                       "qc_co2_flux", "qc_ch4_flux", "qc_H", "qc_LE", "qc_Tau", "co2_var", "co2_strg", 
                       "ch4_strg", "u_var", "v_var", "w_var", "wind_dir", "wind_speed", "max_wind_speed", 
-                      "X_z_d__L", "air_temperature", "VPD", "LW_IN_Avg", "LW_OUT_Avg", "PAR_IN_Avg", 
-                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_")
+                      "X_z_d__L", "air_temperature", "VPD", "LW_IN_T_Corr_Avg", "LW_OUT_T_Corr_Avg", "PAR_IN_Avg", 
+                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_", "Lvl_m_Avg", "WS_Avg")
 
 # Filter `unit_row` to include only the columns in `filtered_columns`
 filtered_unit_row <- unit_row[names(unit_row) %in% filtered_columns]
 
 # View the filtered unit row
 print(filtered_unit_row)
+
 
 
 #### Get rid of the unit rows for 2022 to 2024####
@@ -229,6 +301,28 @@ way3_data[[7]] <- way3_data[[7]][-1, ]
 way4_data[[5]] <- way4_data[[5]][-1, ]
 way4_data[[6]] <- way4_data[[6]][-1, ]
 way4_data[[7]] <- way4_data[[7]][-1, ]
+
+##### 2022, 2023, and 2024 has -9999 instead of NaN
+# Function to replace -9999 with NaN in specific columns
+replace_9999_with_NaN <- function(df) {
+  # Identify columns that are not "TIMESTAMP"
+  cols_to_modify <- colnames(df)[colnames(df) != "TIMESTAMP"]
+  
+  # Apply ifelse only to the relevant columns
+  df[cols_to_modify] <- lapply(df[cols_to_modify], function(x) {
+    ifelse(x %in% c(-9999, "-9999", "-9999.0"), NaN, x)
+  })
+  
+  return(df)
+}
+
+# Apply the function to the 5th, 6th, and 7th elements of way3_data and way4_data
+way3_data[[5]] <- replace_9999_with_NaN(way3_data[[5]])
+way3_data[[6]] <- replace_9999_with_NaN(way3_data[[6]])
+way3_data[[7]] <- replace_9999_with_NaN(way3_data[[7]])
+way4_data[[5]] <- replace_9999_with_NaN(way4_data[[5]])
+way4_data[[6]] <- replace_9999_with_NaN(way4_data[[6]])
+way4_data[[7]] <- replace_9999_with_NaN(way4_data[[7]])
 
 # Print the first row of the TIMESTAMP column
 cat("First row of TIMESTAMP column (way3_data[[5]]):", way3_data[[5]]$TIMESTAMP[1], "\n")
@@ -267,6 +361,49 @@ cat("First row of TIMESTAMP column (way3_data[[5]]):", way3_data[[5]]$TIMESTAMP[
 cat("First row of TIMESTAMP column (way3_data[[6]]):", way3_data[[6]]$TIMESTAMP[1], "\n")
 cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
 cat("First row of TIMESTAMP column (way4_data[[6]]):", way4_data[[6]]$TIMESTAMP[1], "\n")
+
+
+# Function to check if timestamps are 30-minute intervals
+check_time_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Adjust format if necessary
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  all(time_diff == 1800)  # 1800 seconds = 30 minutes
+}
+
+# Function to find the minimum time interval in a dataframe
+find_min_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Convert to POSIXct
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  return(min(time_diff, na.rm = TRUE))  # Return the minimum interval
+}
+
+# Check each dataset in way3_wtd_uni_t
+for (i in seq_along(way3_wtd_uni_t)) {
+  cat("Checking Way3 WTD Data", i, ":", check_time_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "\n")
+  cat("Minimum interval in Way3 WTD Data", i, ":", find_min_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "seconds\n")
+}
+
+# Function to find rows where a specific time difference occurs
+find_problematic_rows <- function(df, timestamp_col, target_diff) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Convert to POSIXct
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  problem_indices <- which(time_diff == target_diff)  # Find indices where time difference matches target
+  
+  if (length(problem_indices) > 0) {
+    return(df[problem_indices:(problem_indices + 1), ])  # Return the problematic rows
+  } else {
+    return(NULL)  # Return NULL if no issues found
+  }
+}
+
+# Find and print problematic rows in Way3 WTD Data 1 (5 seconds)
+cat("\nRows with 5-second interval in Way3 WTD Data 1:\n")
+print(find_problematic_rows(way3_wtd_uni_t[[1]], "TIMESTAMP", 5))
+
+# Find and print problematic rows in Way3 WTD Data 2 (-55 seconds)
+cat("\nRows with -55-second interval in Way3 WTD Data 2:\n")
+print(find_problematic_rows(way3_wtd_uni_t[[2]], "TIMESTAMP", -55))
+
 
 
 #############################################################################
@@ -361,6 +498,10 @@ merge_pairwise <- function(df1, df2) {
 }
 
 
+
+
+
+
 # Pairing them manually (adjust the year accordingly)
 way3_data[[1]] <- merge_pairwise(way3_data[[1]], Way3CHLAIlist$Way32018CHLAI_processed)
 way3_data[[2]] <- merge_pairwise(way3_data[[2]], Way3CHLAIlist$Way32019CHLAI_processed)
@@ -380,6 +521,26 @@ way4_data[[5]] <- merge_pairwise(way4_data[[5]], Way4CHLAIlist$Way42022CHLAI_pro
 way4_data[[6]] <- merge_pairwise(way4_data[[6]], Way4CHLAIlist$Way42023CHLAI_processed)
 way4_data[[7]] <- merge_pairwise(way4_data[[7]], Way4CHLAIlist$Way42024CHLAI_processed)
 
+
+# Function to convert air pressure from Pa to kPa
+convert_air_pressure_to_kpa <- function(df) {
+  # Check if "air_pressure" column exists and convert it to kPa
+  if ("air_pressure" %in% colnames(df)) {
+    df <- df %>% mutate(air_pressure = air_pressure / 1000)
+  }
+  return(df)
+}
+
+# Apply the conversion to way3-data [[1]] to [[4]] (2018 to 2021 data)
+way3_data[[1]] <- convert_air_pressure_to_kpa(way3_data[[1]])
+way3_data[[2]] <- convert_air_pressure_to_kpa(way3_data[[2]])
+way3_data[[3]] <- convert_air_pressure_to_kpa(way3_data[[3]])
+way3_data[[4]] <- convert_air_pressure_to_kpa(way3_data[[4]])
+
+way4_data[[1]] <- convert_air_pressure_to_kpa(way4_data[[1]])
+way4_data[[2]] <- convert_air_pressure_to_kpa(way4_data[[2]])
+way4_data[[3]] <- convert_air_pressure_to_kpa(way4_data[[3]])
+way4_data[[4]] <- convert_air_pressure_to_kpa(way4_data[[4]])
 
 #######LE DATA###############
 #######2021################
@@ -429,7 +590,7 @@ plot(LEdata2021$TIMESTAMP, LEdata2021$LE)
 
 
 #####Rename Way 4 water table depth column WTD_Avg as Lvl_m_Avg
-# Rename WTD_Avg to Lvl_m_Avg in Way4 data
+# Rename WTD_raw_Avg to Lvl_m_Avg in Way4 data
 # Loop through each dataframe in way4_data and rename WTD_Avg to Lvl_m_Avg
 way4_data <- lapply(way4_data, function(df) {
   # Drop any columns named "Lvl_m_Avg"
@@ -439,33 +600,6 @@ way4_data <- lapply(way4_data, function(df) {
   return(df)
 })
 
-##### 2022, 2023, and 2024 has -9999 instead of NaN
-# Replace -9999 with NaN in the 5th and 6th elements of the list
-# Convert all columns to numeric before applying the ifelse function
-
-way3_data[[5]] <- as.data.frame(lapply(way3_data[[5]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way3_data[[6]] <- as.data.frame(lapply(way3_data[[6]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way3_data[[7]] <- as.data.frame(lapply(way3_data[[7]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[5]] <- as.data.frame(lapply(way4_data[[5]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[6]] <- as.data.frame(lapply(way4_data[[6]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
-
-way4_data[[7]] <- as.data.frame(lapply(way4_data[[7]], function(x) {
-  ifelse(x %in% c("-9999", "-9999.0"), NaN, x)
-}))
 
 
 #####Save the way3 data
@@ -504,22 +638,144 @@ file_path <- file.path(output_dir, "Unit_df.csv")
 write.csv(filtered_unit_row, file_path, row.names = FALSE)
 
 ncol(filtered_unit_row)
+plot(way3_data[[7]]$TIMESTAMP, way3_data[[7]]$canopy_height_gapfilled)
 
 
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Function to check if timestamps are 30-minute intervals
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+check_time_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Adjust format if necessary
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  all(time_diff == 1800)  # 1800 seconds = 30 minutes
+}
+# List of way3_data and corresponding CHLAI data frames
+way3_dfs <- list(
+  way3_data[[1]], way3_data[[2]], way3_data[[3]], 
+  way3_data[[4]], way3_data[[5]], way3_data[[6]], way3_data[[7]]
+)
+
+# List of way4_data and corresponding CHLAI data frames
+way4_dfs <- list(
+  way4_data[[1]], way4_data[[2]], way4_data[[3]], 
+  way4_data[[4]], way4_data[[5]], way4_data[[6]], way4_data[[7]]
+)
+way3_chlai_dfs <- list(
+  Way3CHLAIlist$Way32018CHLAI_processed, 
+  Way3CHLAIlist$Way32019CHLAI_processed,
+  Way3CHLAIlist$Way32020CHLAI_processed, 
+  Way3CHLAIlist$Way32021CHLAI_processed, 
+  Way3CHLAIlist$Way32022CHLAI_processed, 
+  Way3CHLAIlist$Way32023CHLAI_processed, 
+  Way3CHLAIlist$Way32024CHLAI_processed
+)
+# Check each dataset
+for (i in seq_along(way3_dfs)) {
+  cat("Checking Way3 Data", i, ":", check_time_interval(way3_dfs[[i]], "TIMESTAMP"), "\n")
+  cat("Checking Way3 CHLAI Data", i, ":", check_time_interval(way3_chlai_dfs[[i]], "TIMESTAMP"), "\n")
+}
+
+# Function to find the minimum time interval in a dataframe
+find_min_interval <- function(df, timestamp_col) {
+  df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Convert to POSIXct
+  time_diff <- diff(df[[timestamp_col]])  # Compute time differences
+  return(min(time_diff, na.rm = TRUE))  # Return the minimum interval
+}
+
+# Iterate over each dataset and find the minimum interval
+for (i in seq_along(way3_dfs)) {
+  cat("Minimum interval in Way3 Data", i, ":", find_min_interval(way3_dfs[[i]], "TIMESTAMP"), "seconds\n")
+  cat("Minimum interval in Way3 CHLAI Data", i, ":", find_min_interval(way3_chlai_dfs[[i]], "TIMESTAMP"), "seconds\n")
+}
+
+
+# Function to check for duplicates in TIMESTAMP_START column
+check_duplicates <- function(data, name) {
+  # Ensure TIMESTAMP_START is numeric
+  data$TIMESTAMP <- as.numeric(data$TIMESTAMP)
+  # Check for duplicates in TIMESTAMP_START
+  duplicate_timestamps <- which(duplicated(data$TIMESTAMP))
+
+  # Print the results
+  if (length(duplicate_timestamps) > 0) {
+    cat("Duplicates found in", name, "at rows:", duplicate_timestamps, "\n")
+    cat("Duplicate rows and their TIMESTAMP_START values:\n")
+    
+    # Print both the row and the duplicated value
+    for (index in duplicate_timestamps) {
+      cat("Row:", index, "- TIMESTAMP_START:", data$TIMESTAMP_START[index], "\n")
+      print(data[index, ])  # Display the duplicate row
+    }
+  } else {
+    cat("No duplicates found in", name, "\n")
+  }
+}
+
+# Check for duplicates in Way3 data
+for (i in seq_along(way3_dfs)) {
+  check_duplicates(way3_dfs[[i]], names(way3_dfs)[i])
+}
+
+# Check for duplicates in Way4 data
+for (i in seq_along(way4_dfs)) {
+  check_duplicates(way4_dfs[[i]], names(way4_dfs)[i])
+}
 
 
 
+##############plot way 3 wind speed from Eddypro vs way 3 wind speed for ###########
+#Wind speed column of eddypro: wind_speed; 
+#Wind speed column of biomet: WS_Avg
+
+library(ggplot2)
+library(ggpmisc)
+
+# Function to create and save scatter plot
+plot_and_save <- function(df, year, site, save_dir) {
+  # Convert columns to numeric
+  df$wind_speed <- as.numeric(df$wind_speed)
+  df$WS_Avg <- as.numeric(df$WS_Avg)
+  
+  # Ensure no NA values
+  df <- df[!is.na(df$wind_speed) & !is.na(df$WS_Avg), ]
+  
+  # Create the plot
+  p <- ggplot(df, aes(x = wind_speed, y = WS_Avg)) +
+    geom_point(color = "blue", alpha = 0.5) +  # Scatter points
+    geom_smooth(method = "lm", color = "red", formula = y ~ x) +  # Regression line
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 line
+    stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 formula = y ~ x, parse = TRUE) +  # Regression equation and R2
+    labs(
+      x = expression("Sonic Anemometer Wind Speed "~ms^{-1}), 
+      y = expression("Biomet Wind Speed "~ms^{-1}),
+      title = paste("Wind Speed Comparison -", site, year)
+    ) +
+    theme_minimal()
+  
+  # Define file name
+  file_name <- paste0(save_dir, "/", site, "_WindSpeed_", year, ".png")
+  
+  # Save plot
+  ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+}
+
+# Define save directory
+save_dir <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Figure/WindSpeed"
+
+# Apply function to all datasets
+years <- 2018:2024  # Corresponding years
+for (i in 1:7) {
+  plot_and_save(way3_dfs[[i]], years[i], "Way3", save_dir)
+  plot_and_save(way4_dfs[[i]], years[i], "Way4", save_dir)
+}
 
 
 
-
-
-
-
-# 
-# ### Merge with Caanopy Height Data
+#### Merge with Caanopy Height Data
 # # Merge 2019 data (CHDLWay3[[1]] into way3_data[[2]])
 # way3_data[[2]] <- merge(way3_data[[2]], CHDLWay3[[1]], by = "TIMESTAMP", all = TRUE)
 # # Merge 2020 data (CHDLWay3[[2]] into way3_data[[3]])
