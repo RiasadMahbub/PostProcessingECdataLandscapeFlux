@@ -250,3 +250,4 @@ lapply(seq_along(way4_data[1:7]), function(i) {
 
 
 summary(as.numeric(way4_data[[7]]$WTD_Avg))
+

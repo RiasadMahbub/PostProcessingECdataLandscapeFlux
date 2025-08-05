@@ -391,3 +391,57 @@ ggsave(
 # Return the processed data
 return(merged_data)
 
+
+
+
+#--------------------------------------------------------
+#--------------------------------------------------------
+# Scatterplots for Way3
+for (i in 1:7) {
+  df <- all_processed_data_way3[[i]]
+  
+  plot(df$WS, df$USTAR,
+       main = paste("Way3 - Year", i, "WS vs USTAR"),
+       xlab = "Wind Speed (WS)",
+       ylab = "Friction Velocity (USTAR)",
+       col = "darkgreen", pch = 16)
+}
+
+# Scatterplots for Way4
+for (i in 1:7) {
+  df <- all_processed_data_way4[[i]]
+  
+  plot(df$WS, df$USTAR,
+       main = paste("Way4 - Year", i, "WS vs USTAR"),
+       xlab = "Wind Speed (WS)",
+       ylab = "Friction Velocity (USTAR)",
+       col = "darkorange", pch = 16)
+}
+
+
+
+#--------------------------------------------------------
+#--------------------------------------------------------
+# Scatterplots for Way3
+for (i in 1:7) {
+  df <- way3_data[[i]]
+  
+  plot(df$wind_speed, df$u_,
+       main = paste("Way3 - Year", i, "WS vs USTAR"),
+       xlab = "Wind Speed (WS)",
+       ylab = "Friction Velocity (USTAR)",
+       col = "darkgreen", pch = 16)
+}
+
+# Scatterplots for Way4
+for (i in 1:7) {
+  df <- way4_data[[i]]
+  
+  plot(df$wind_speed, df$u_,
+       main = paste("Way4 - Year", i, "WS vs USTAR"),
+       xlab = "Wind Speed (WS)",
+       ylab = "Friction Velocity (USTAR)",
+       col = "darkorange", pch = 16)
+}
+
+

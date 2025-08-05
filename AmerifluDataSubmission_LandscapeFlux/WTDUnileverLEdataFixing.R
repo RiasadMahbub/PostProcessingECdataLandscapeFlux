@@ -3,6 +3,9 @@ library(readr)
 library(readxl)
 library(dplyr)
 library(lubridate)
+library(base)
+library(ggplot2)
+library(ggpmisc)
 
 # names(way3_wtd_uni_t)
 # way3_data[[1-7]] 2018, 2019, 2020, 2021, 2022, 2023, 2024 
@@ -100,7 +103,7 @@ filtered_data_list <- lapply(data_list, function(df) {
 # Separate into Way3 and Way4
 way3_wtd_uni_t <- filtered_data_list[grep("Way3", names(filtered_data_list))]
 way4_wtd_uni_t <- filtered_data_list[grep("Way4", names(filtered_data_list))]
-hist(way3_wtd_uni_t$Way3_UnileverTowerStation_2020$wt_corr_AVG_cm_fixedBias)
+
 
 # Replace non-numeric values with NA (keeping the structure intact)
 way3_wtd_uni_t$Way3_UnileverTowerStation_2021$wt_corr_AVG_cm_fixedBias[way3_wtd_uni_t$Way3_UnileverTowerStation_2021$wt_corr_AVG_cm_fixedBias %in% c("m", "Avg")] <- NA
@@ -127,13 +130,11 @@ convert_cm_to_m <- function(df) {
 way3_wtd_uni_t <- lapply(way3_wtd_uni_t, convert_cm_to_m)
 # Apply to all data frames in way4_wtd_uni_t
 way4_wtd_uni_t <- lapply(way4_wtd_uni_t, convert_cm_to_m)
-names(way3_wtd_uni_t)
-names(way4_wtd_uni_t)
 
+########################################################################################################
 ##########################2020 and 2021 are in 5/15 minutes resolution 
 # Function to aggregate data into 30-minute intervals
-
-# Function to aggregate data into 30-minute intervals
+########################################################################################################s
 aggregate_to_30min <- function(df, timestamp_col, value_cols) {
   df <- df %>%
     mutate(
@@ -153,14 +154,12 @@ aggregate_to_30min <- function(df, timestamp_col, value_cols) {
   return(df)
 }
 
-# Example usage
 way3_wtd_uni_t$Way3_UnileverTowerStation_2020 <- aggregate_to_30min(
   way3_wtd_uni_t$Way3_UnileverTowerStation_2020,
   timestamp_col = "TIMESTAMP",
   value_cols = c("wt_corr_AVG_cm_fixedBias")  # Replace with actual column names
 )
 
-# Example usage
 way3_wtd_uni_t$Way3_UnileverTowerStation_2021 <- aggregate_to_30min(
   way3_wtd_uni_t$Way3_UnileverTowerStation_2021,
   timestamp_col = "TIMESTAMP",
@@ -169,7 +168,6 @@ way3_wtd_uni_t$Way3_UnileverTowerStation_2021 <- aggregate_to_30min(
 
 plot(way3_wtd_uni_t$Way3_UnileverTowerStation_2020$TIMESTAMP, way3_wtd_uni_t$Way3_UnileverTowerStation_2020$wt_corr_AVG_cm_fixedBias)
 plot(way3_wtd_uni_t$Way3_UnileverTowerStation_2021$TIMESTAMP, way3_wtd_uni_t$Way3_UnileverTowerStation_2021$wt_corr_AVG_cm_fixedBias)
-
 
 # Function to check if timestamps are 30-minute intervals
 check_time_interval <- function(df, timestamp_col) {
@@ -199,7 +197,6 @@ save_data_list <- function(data_list, output_dir) {
   for (df_name in names(data_list)) {
     # Extract the data frame
     data <- data_list[[df_name]]
-    
     # Create the new file name
     if (grepl("Mast", df_name)) {
       new_file_name <- gsub("Mast", "2020", df_name)  # Replace "Mast" with "2020"
@@ -220,14 +217,13 @@ save_data_list <- function(data_list, output_dir) {
 # Save data frames from both lists
 save_data_list(way3_wtd_uni_t, output_dir)
 save_data_list(way4_wtd_uni_t, output_dir)
-# Load necessary library
-library(base)
 
-#####################################
-#####################################
+
+
+#----------------------------------------
 # Define the directories
-#######################################
-########################################
+#----------------------------------------
+
 way3_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/Masterfiles/Way3"
 way4_directory <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/Masterfiles/Way4"
 
@@ -272,9 +268,20 @@ apply_column_mapping <- function(data) {
   }
   return(data)
 }
-
-
+# Apply column mapping Way3 and Way4 data
+way3_data <- lapply(way3_data, apply_column_mapping)
+way4_data <- lapply(way4_data, apply_column_mapping)
 unit_row<-apply_column_mapping(unit_row)
+#############
+# Windspeed of way 4 in the year 2021 will be replaced by biomet data###
+#####This analysis was found in the graphs plotting biomet and aenonometer wind speed
+way4_data[[4]]$wind_speed <- way4_data[[4]]$WS_Avg
+
+# Add an NA column for P_RAIN_Tot in way3_data
+for (i in seq_along(way3_data)) {
+  way3_data[[i]]$P_RAIN_Tot <- NA
+}
+
 # Filter and rename
 filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", "x_90_", "x_peak", 
                       "ch4_mole_fraction", "ch4_mixing_ratio", "co2_mole_fraction", "co2_mixing_ratio", 
@@ -283,16 +290,16 @@ filtered_columns <- c("TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_END", "x_70_", 
                       "qc_co2_flux", "qc_ch4_flux", "qc_H", "qc_LE", "qc_Tau", "co2_var", "co2_strg", 
                       "ch4_strg", "u_var", "v_var", "w_var", "wind_dir", "wind_speed", "max_wind_speed", 
                       "X_z_d__L", "air_temperature", "VPD", "LW_IN_T_Corr_Avg", "LW_OUT_T_Corr_Avg", "PAR_IN_Avg", 
-                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_", "Lvl_m_Avg", "WS_Avg")
+                      "PAR_OUT_Avg", "SW_IN_Avg", "SW_OUT_Avg", "SWC_2_1_1_Avg", "L", "Tau", "TS_mean.2.", "u_", 
+                      "Lvl_m_Avg", "WS_Avg", "P_RAIN_Tot", "rssi_77_mean", "rand_err_ch4_flux", 
+                      "co2_signal_strength_7500_mean", "rand_err_Tau", "rand_err_H", "rand_err_LE",
+                      "rand_err_co2_flux", "rand_err_h2o_flux", "rand_err_ch4_flux")
 
 # Filter `unit_row` to include only the columns in `filtered_columns`
 filtered_unit_row <- unit_row[names(unit_row) %in% filtered_columns]
 
 # View the filtered unit row
 print(filtered_unit_row)
-
-
-
 #### Get rid of the unit rows for 2022 to 2024####
 way3_data[[5]] <- way3_data[[5]][-1, ]
 way3_data[[6]] <- way3_data[[6]][-1, ]
@@ -307,12 +314,10 @@ way4_data[[7]] <- way4_data[[7]][-1, ]
 replace_9999_with_NaN <- function(df) {
   # Identify columns that are not "TIMESTAMP"
   cols_to_modify <- colnames(df)[colnames(df) != "TIMESTAMP"]
-  
   # Apply ifelse only to the relevant columns
   df[cols_to_modify] <- lapply(df[cols_to_modify], function(x) {
     ifelse(x %in% c(-9999, "-9999", "-9999.0"), NaN, x)
   })
-  
   return(df)
 }
 
@@ -338,7 +343,6 @@ cat("First row of TIMESTAMP column (way4_data[[7]]):", way4_data[[7]]$TIMESTAMP[
 
 # Print the first row to verify the change
 cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
-
 # Function to check and convert TIMESTAMP
 convert_timestamp <- function(timestamp) {
   # If the TIMESTAMP is already in the correct format, return it as is
@@ -362,8 +366,9 @@ cat("First row of TIMESTAMP column (way3_data[[6]]):", way3_data[[6]]$TIMESTAMP[
 cat("First row of TIMESTAMP column (way4_data[[5]]):", way4_data[[5]]$TIMESTAMP[1], "\n")
 cat("First row of TIMESTAMP column (way4_data[[6]]):", way4_data[[6]]$TIMESTAMP[1], "\n")
 
-
+##############################################################################
 # Function to check if timestamps are 30-minute intervals
+##############################################################################
 check_time_interval <- function(df, timestamp_col) {
   df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Adjust format if necessary
   time_diff <- diff(df[[timestamp_col]])  # Compute time differences
@@ -380,7 +385,7 @@ find_min_interval <- function(df, timestamp_col) {
 # Check each dataset in way3_wtd_uni_t
 for (i in seq_along(way3_wtd_uni_t)) {
   cat("Checking Way3 WTD Data", i, ":", check_time_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "\n")
-  cat("Minimum interval in Way3 WTD Data", i, ":", find_min_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "seconds\n")
+  cat("Minimum interval in Way3 WTD Data", i, ":", find_min_interval(way3_wtd_uni_t[[i]], "TIMESTAMP"), "minutes\n")
 }
 
 # Function to find rows where a specific time difference occurs
@@ -404,7 +409,17 @@ print(find_problematic_rows(way3_wtd_uni_t[[1]], "TIMESTAMP", 5))
 cat("\nRows with -55-second interval in Way3 WTD Data 2:\n")
 print(find_problematic_rows(way3_wtd_uni_t[[2]], "TIMESTAMP", -55))
 
-
+merge_p_rain_tot <- function(way3_data, way4_data) {
+  for (i in seq_along(way3_data)) {
+    if ("P_RAIN_Tot" %in% colnames(way3_data[[i]])) {
+      way3_data[[i]]$P_RAIN_Tot <- NULL
+    }
+    way3_data[[i]] <- merge(way3_data[[i]], way4_data[[i]][, c("TIMESTAMP", "P_RAIN_Tot")], 
+                            by = "TIMESTAMP", all.x = TRUE)
+  }
+  return(way3_data)
+}
+way3_data <- merge_p_rain_tot(way3_data, way4_data)
 
 #############################################################################
 ##########################MERGING WtD With WAY 3 and 4 #####################
@@ -478,7 +493,7 @@ filtered_unit_row$canopy_height <- "[m]"
 filtered_unit_row$LAI_corrected<- "[m^2/m^2]"
 filtered_unit_row$LAI_corrected_gapfilled<- "[m^2/m^2]"
 filtered_unit_row$canopy_height_gapfilled <- "[m]"
-
+filtered_unit_row$P_RAIN_Tot <- "[mm]"
 
 # Verify the updated filtered_unit_row
 print(filtered_unit_row)
@@ -496,10 +511,6 @@ merge_pairwise <- function(df1, df2) {
   merged_df <- full_join(df1, df2, by = "TIMESTAMP")
   return(merged_df)
 }
-
-
-
-
 
 
 # Pairing them manually (adjust the year accordingly)
@@ -600,7 +611,179 @@ way4_data <- lapply(way4_data, function(df) {
   return(df)
 })
 
+# Copy of original data before filtering by wind speed and ustar
+way3_data_nfws <- way3_data
+way4_data_nfws <- way4_data 
+####################################
+############for 2021 way 4 we will replace biomet ##################
+####################################
 
+##########################################
+#######FIX USTAR WINDSPEED################
+##########################################
+# Function to get the correct column name dynamically
+get_column_name <- function(df, possible_names) {
+  return(possible_names[possible_names %in% colnames(df)][1])
+}
+
+# Initialize lists
+way3_dfswindustar <- vector("list", length = 7)
+way4_dfswindustar <- vector("list", length = 7)
+way4_outliers <- vector("list", length = 7)  # Store outliers for each dataset
+
+# Loop through both way3 and way4 data frames and select required columns with renaming
+for (i in 1:7) {
+  # Determine the correct column name for ustar dynamically
+  way3_ustar_col <- get_column_name(way3_data[[i]], c("u_", "ustar"))
+  way4_ustar_col <- get_column_name(way4_data[[i]], c("u_", "ustar"))
+  # Process way3 data
+  way3_dfswindustar[[i]] <- way3_data[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w3_sonic = wind_speed, 
+      way3ustar = all_of(way3_ustar_col) # Select dynamically
+    ) %>%
+    mutate(across(c(wind_speed_w3_sonic, way3ustar), as.numeric))  # Convert to numeric
+  way4_dfswindustar[[i]] <- way4_data[[i]] %>%  # Process way4 data
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w4_sonic = wind_speed,
+      way4ustar = all_of(way4_ustar_col) # Select dynamically
+    ) %>%
+    mutate(across(c(wind_speed_w4_sonic, way4ustar), as.numeric))  # Convert to numeric
+  # Remove rows with NA values before fitting the model
+  clean_data <- way4_dfswindustar[[i]] %>%
+    filter(!is.na(way4ustar) & !is.na(wind_speed_w4_sonic))
+  # Fit a linear regression model for USTAR ~ WS in way4 (if data is sufficient)
+  if (nrow(clean_data) > 1) {  # Ensure enough data points
+    lm_model <- lm(way4ustar ~ wind_speed_w4_sonic, data = clean_data)
+    # Predict values based on the regression model
+    way4_dfswindustar[[i]]$predicted_ustar <- predict(lm_model, newdata = way4_dfswindustar[[i]])
+    # Calculate residuals (absolute deviation from regression line)
+    way4_dfswindustar[[i]]$residuals <- abs(way4_dfswindustar[[i]]$way4ustar - way4_dfswindustar[[i]]$predicted_ustar)
+    threshold <- 4 * sd(way4_dfswindustar[[i]]$residuals, na.rm = TRUE)# Define a threshold for outliers (e.g., 4 standard deviations)
+    way4_outliers[[i]] <- way4_dfswindustar[[i]] %>%# Identify outliers (points that deviate significantly)
+      filter(residuals > threshold)# Print outliers for debugging
+    print(way4_outliers[[i]])
+  } else {
+    message(paste("Skipping dataset", i, "due to insufficient non-NA data."))
+  }
+}
+
+# Replace outlier rows with NA in the ustar column for way4_data[[1]], [[4]], [[6]], [[7]]
+# NOTE: For indices 6 and 7, we increase the threshold from 4 to 4.25 SD because
+# even after excluding points beyond 4 SD, the WS–u* relationship still failed  (21.8% of data flagged as outliers in second submission). This adjustment aims to reduce 
+# the residual impact of extreme values that distort the regression.Replace outlier rows with NA in the ustar column for way4_data[[1]], [[4]], [[6]], [[7]]
+outlier_indices <- c(1, 4, 6, 7)
+
+for (i in outlier_indices) {
+  threshold <- if (i %in% c(6, 7)) {
+    3.75 * sd(way4_dfswindustar[[i]]$residuals, na.rm = TRUE)
+  } else {
+    4 * sd(way4_dfswindustar[[i]]$residuals, na.rm = TRUE)
+  }
+  way4_outliers[[i]] <- way4_dfswindustar[[i]] %>%
+    filter(residuals > threshold)
+  outlier_timestamps <- way4_outliers[[i]]$TIMESTAMP
+  rows_to_na <- way4_data[[i]]$TIMESTAMP %in% outlier_timestamps
+  # Get correct ustar column name again
+  way4_ustar_col <- get_column_name(way4_data[[i]], c("u_", "ustar"))
+  # Replace with NA safely using column name as a string
+  way4_data[[i]][rows_to_na, way4_ustar_col] <- NA
+}
+
+# Initialize lists
+way3_dfswindustar <- vector("list", length = 7)
+way3_outliers <- vector("list", length = 7)
+
+# Loop through way3 data frames and process
+for (i in 1:7) {
+  # Determine the correct column name for ustar dynamically
+  way3_ustar_col <- get_column_name(way3_data[[i]], c("u_", "ustar"))
+  
+  # Process way3 data
+  way3_dfswindustar[[i]] <- way3_data[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w3_sonic = wind_speed, 
+      way3ustar = all_of(way3_ustar_col)
+    ) %>%
+    mutate(across(c(wind_speed_w3_sonic, way3ustar), as.numeric))
+  
+  # Remove rows with NA values before fitting the model
+  clean_data <- way3_dfswindustar[[i]] %>%
+    filter(!is.na(way3ustar) & !is.na(wind_speed_w3_sonic))
+  
+  # Fit a linear regression model for USTAR ~ WS in way3 (if data is sufficient)
+  if (nrow(clean_data) > 1) {
+    lm_model <- lm(way3ustar ~ wind_speed_w3_sonic, data = clean_data)
+    
+    # Predict values based on the regression model
+    way3_dfswindustar[[i]]$predicted_ustar <- predict(lm_model, newdata = way3_dfswindustar[[i]])
+    
+    # Calculate residuals
+    way3_dfswindustar[[i]]$residuals <- abs(way3_dfswindustar[[i]]$way3ustar - way3_dfswindustar[[i]]$predicted_ustar)
+    
+    # Identify outliers (standard 4×SD threshold)
+    threshold <- 4 * sd(way3_dfswindustar[[i]]$residuals, na.rm = TRUE)
+    way3_outliers[[i]] <- way3_dfswindustar[[i]] %>%
+      filter(residuals > threshold)
+    
+    print(way3_outliers[[i]])
+  } else {
+    message(paste("Skipping Way3 dataset", i, "due to insufficient non-NA data."))
+  }
+}
+
+# Replace outlier rows with NA in the ustar column for specific Way3 years
+outlier_indices_w3 <- c(1, 6, 7)
+
+for (i in outlier_indices_w3) {
+  threshold <- if (i %in% c(6, 7)) {
+    3.75 * sd(way3_dfswindustar[[i]]$residuals, na.rm = TRUE)
+  } else {
+    4 * sd(way3_dfswindustar[[i]]$residuals, na.rm = TRUE)
+  }
+  
+  way3_outliers[[i]] <- way3_dfswindustar[[i]] %>%
+    filter(residuals > threshold)
+  
+  outlier_timestamps <- way3_outliers[[i]]$TIMESTAMP
+  rows_to_na <- way3_data[[i]]$TIMESTAMP %in% outlier_timestamps
+  
+  # Get correct ustar column name again
+  way3_ustar_col <- get_column_name(way3_data[[i]], c("u_", "ustar"))
+  
+  # Replace with NA safely
+  way3_data[[i]][rows_to_na, way3_ustar_col] <- NA
+}
+
+
+
+######################################
+####Fix the Way3 2021 temperature#####
+######################################
+remove_air_temp_outliers <- function(df, threshold_factor = 1.7) {
+  df$air_temperature <- as.numeric(df$air_temperature)  #Ensure numeric
+  df$sonic_temperature <- as.numeric(df$sonic_temperature)  #Ensure numeric
+  df$air_temperature_C <- df$air_temperature - 273.15  #Kelvin to Celsius
+  df$sonic_temperature_C <- df$sonic_temperature - 273.15  #Kelvin to Celsius
+  
+  df$orig_index <- seq_len(nrow(df))  #Track original index
+  filtered <- df %>% filter(!is.na(air_temperature_C), !is.na(sonic_temperature_C))  #Filter valid rows
+  
+  lm_model <- lm(sonic_temperature_C ~ air_temperature_C, data = filtered)
+  filtered$predicted_sonic <- predict(lm_model, newdata = filtered)
+  filtered$residuals <- filtered$sonic_temperature_C - filtered$predicted_sonic
+  threshold <- threshold_factor * sd(filtered$residuals, na.rm = TRUE)
+  outlier_indices <- filtered$orig_index[abs(filtered$residuals) > threshold]
+  
+  df$air_temperature[outlier_indices] <- NA  #Replace with NA in original dataframe
+  return(df)
+}
+
+# Apply to your data
+way3_data[[6]] <- remove_air_temp_outliers(way3_data[[6]])
 
 #####Save the way3 data
 # Directory path
@@ -640,13 +823,16 @@ write.csv(filtered_unit_row, file_path, row.names = FALSE)
 ncol(filtered_unit_row)
 plot(way3_data[[7]]$TIMESTAMP, way3_data[[7]]$canopy_height_gapfilled)
 
-
-
-
+#+-------------------------------------------------------------------
+#+-------------------------------------------------------------------
+#+#+-------------------------------------------------------------------
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # Function to check if timestamps are 30-minute intervals
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 check_time_interval <- function(df, timestamp_col) {
   df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]], format="%Y-%m-%d %H:%M:%S")  # Adjust format if necessary
   time_diff <- diff(df[[timestamp_col]])  # Compute time differences
@@ -687,8 +873,8 @@ find_min_interval <- function(df, timestamp_col) {
 
 # Iterate over each dataset and find the minimum interval
 for (i in seq_along(way3_dfs)) {
-  cat("Minimum interval in Way3 Data", i, ":", find_min_interval(way3_dfs[[i]], "TIMESTAMP"), "seconds\n")
-  cat("Minimum interval in Way3 CHLAI Data", i, ":", find_min_interval(way3_chlai_dfs[[i]], "TIMESTAMP"), "seconds\n")
+  cat("Minimum interval in Way3 Data", i, ":", find_min_interval(way3_dfs[[i]], "TIMESTAMP"), "minutes\n")
+  cat("Minimum interval in Way3 CHLAI Data", i, ":", find_min_interval(way3_chlai_dfs[[i]], "TIMESTAMP"), "minutes\n")
 }
 
 
@@ -724,15 +910,10 @@ for (i in seq_along(way4_dfs)) {
   check_duplicates(way4_dfs[[i]], names(way4_dfs)[i])
 }
 
-
-
 ##############plot way 3 wind speed from Eddypro vs way 3 wind speed for ###########
 #Wind speed column of eddypro: wind_speed; 
 #Wind speed column of biomet: WS_Avg
-
-library(ggplot2)
-library(ggpmisc)
-
+#### Wind speed of anemometer of way 4 2021 has been changed by biomet wind speed
 # Function to create and save scatter plot
 plot_and_save <- function(df, year, site, save_dir) {
   # Convert columns to numeric
@@ -773,6 +954,511 @@ for (i in 1:7) {
   plot_and_save(way4_dfs[[i]], years[i], "Way4", save_dir)
 }
 
+# Initialize empty lists to store filtered data frames
+way3_dfswind <- vector("list", length = 7)
+way4_dfswind <- vector("list", length = 7)
+
+# Loop through both way3 and way4 data frames and select required columns with renaming
+for (i in 1:7) {
+  # Process way3 data
+  way3_dfswind[[i]] <- way3_dfs[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w3_sonic = wind_speed, # Wind speed column of eddypro: wind_speed
+      WS_Avg_w3_biomet = WS_Avg       # Wind speed column of biomet: WS_Avg
+    ) %>%
+    # Filter values greater than 11.38 for WS_Avg_w3_biomet
+    dplyr::filter(WS_Avg_w3_biomet < 11.38)
+  
+  # Process way4 data
+  way4_dfswind[[i]] <- way4_dfs[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w4_sonic = wind_speed,
+      WS_Avg_w4_biomet = WS_Avg
+    )
+}
+
+# Initialize an empty list to store the merged data frames
+w3w4_dfswind <- vector("list", length = 7)
+
+# Loop through and merge each corresponding pair of data frames
+for (i in 1:7) {
+  w3w4_dfswind[[i]] <- dplyr::inner_join(
+    way3_dfswind[[i]], 
+    way4_dfswind[[i]], 
+    by = "TIMESTAMP"
+  )
+}
+# Remove NA values and then find the top 5 maximum values
+top_5_max_values <- sort(na.omit(way3_dfswind[[1]]$WS_Avg_w3_biomet), decreasing = TRUE)[1:5]
+
+# Display the top 5 maximum values
+top_5_max_values
+
+# Define the save directory for way3biomet vs way4biomet plots
+save_dir1 <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Figure/WindSpeed/way3biomet_way4biomet"
+
+# Ensure the directory exists
+if (!dir.exists(save_dir1)) dir.create(save_dir1, recursive = TRUE)
+
+# Function to create and save scatter plot
+plot_and_save <- function(df, year, site, save_dir, x_var, y_var, x_label, y_label) {
+  # Convert columns to numeric
+  df[[x_var]] <- as.numeric(df[[x_var]])
+  df[[y_var]] <- as.numeric(df[[y_var]])
+  
+  # Remove NA values
+  df <- df[!is.na(df[[x_var]]) & !is.na(df[[y_var]]), ]
+  
+  # Create the plot
+  p <- ggplot(df, aes_string(x = x_var, y = y_var)) +
+    geom_point(color = "blue", alpha = 0.5) +  # Scatter points
+    geom_smooth(method = "lm", color = "red", formula = y ~ x) +  # Regression line
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 line
+    stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 formula = y ~ x, parse = TRUE) +  # Regression equation and R2
+    labs(
+      x = x_label, 
+      y = y_label,
+      title = paste("Wind Speed Comparison -", site, year)
+    ) +
+    theme_minimal()
+  # Define file name
+  file_name <- paste0(save_dir, "/", site, "_WindSpeed_", year, ".png")
+  
+  # Save plot
+  ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+}
+
+# Updated years range
+years <- 2018:2024  
+
+# Loop through the years and create the first set of plots
+for (i in 1:7) {
+  plot_and_save(
+    df = w3w4_dfswind[[i]],
+    year = years[i],
+    site = "way3way4biomet",
+    save_dir = save_dir1,
+    x_var = "WS_Avg_w3_biomet",
+    y_var = "WS_Avg_w4_biomet",
+    x_label = expression("Way3 Biomet Wind Speed "~ms^{-1}),
+    y_label = expression("Way4 Biomet Wind Speed "~ms^{-1})
+  )
+}
+
+
+
+# Define save directory for way3biomet vs way4sonic
+save_dir_sonic <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Figure/WindSpeed/way3biomet_way4sonic"
+
+# Ensure the directory exists
+if (!dir.exists(save_dir_sonic)) dir.create(save_dir_sonic, recursive = TRUE)
+
+# Function to create and save scatter plots
+plot_and_save <- function(df, year, save_dir, x_var, y_var, x_label, y_label, site) {
+  # Convert columns to numeric
+  df[[x_var]] <- as.numeric(df[[x_var]])
+  df[[y_var]] <- as.numeric(df[[y_var]])
+  # Remove NA values
+  df <- df[!is.na(df[[x_var]]) & !is.na(df[[y_var]]), ]
+  # Create the plot
+  p <- ggplot(df, aes_string(x = x_var, y = y_var)) +
+    geom_point(color = "blue", alpha = 0.5) +  # Scatter points
+    geom_smooth(method = "lm", color = "red", formula = y ~ x) +  # Regression line
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 line
+    stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 formula = y ~ x, parse = TRUE) +  # Regression equation and R2
+    labs(
+      x = x_label, 
+      y = y_label,
+      title = paste("Wind Speed Comparison -", site, year)
+    ) +
+    theme_minimal()
+  
+  # Define file name
+  file_name <- paste0(save_dir, "/", site, "_WindSpeed_", year, ".png")
+  
+  # Save plot
+  ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+}
+
+# Updated years range
+years <- 2018:2024  
+
+# Loop through the years and create the scatter plots
+for (i in 1:7) {
+  plot_and_save(
+    df = w3w4_dfswind[[i]],
+    year = years[i],
+    save_dir = save_dir_sonic,
+    x_var = "WS_Avg_w3_biomet",
+    y_var = "wind_speed_w4_sonic",
+    x_label = expression("Way3 Biomet Wind Speed "~ms^{-1}),
+    y_label = expression("Way4 Sonic Anemometer Wind Speed "~ms^{-1}),
+    site = "way3biomet_way4sonic"
+  )
+}
+
+
+# Define save directory for way3sonic vs way4biomet
+save_dir_biomet <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Figure/WindSpeed/way3sonic_way4biomet"
+# Ensure the directory exists
+if (!dir.exists(save_dir_biomet)) dir.create(save_dir_biomet, recursive = TRUE)
+
+# Function to create and save scatter plots
+plot_and_save <- function(df, year, save_dir, x_var, y_var, x_label, y_label, site) {
+  # Convert columns to numeric
+  df[[x_var]] <- as.numeric(df[[x_var]])
+  df[[y_var]] <- as.numeric(df[[y_var]])
+  
+  # Remove NA values
+  df <- df[!is.na(df[[x_var]]) & !is.na(df[[y_var]]), ]
+  
+  # Create the plot
+  p <- ggplot(df, aes_string(x = x_var, y = y_var)) +
+    geom_point(color = "blue", alpha = 0.5) +  # Scatter points
+    geom_smooth(method = "lm", color = "red", formula = y ~ x) +  # Regression line
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 line
+    stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 formula = y ~ x, parse = TRUE) +  # Regression equation and R2
+    labs(
+      x = x_label, 
+      y = y_label,
+      title = paste("Wind Speed Comparison -", site, year)
+    ) +
+    theme_minimal()
+  # Define file name
+  file_name <- paste0(save_dir, "/", site, "_WindSpeed_", year, ".png")
+  # Save plot
+  ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+}
+# Updated years range
+years <- 2018:2024  
+# Loop through the years and create the scatter plots
+for (i in 1:7) {
+  plot_and_save(
+    df = w3w4_dfswind[[i]],
+    year = years[i],
+    save_dir = save_dir_biomet,
+    x_var = "wind_speed_w3_sonic",
+    y_var = "WS_Avg_w4_biomet",
+    x_label = expression("Way3 Sonic Anemometer Wind Speed "~ms^{-1}),
+    y_label = expression("Way4 Biomet Wind Speed "~ms^{-1}),
+    site = "way3sonic_way4biomet"
+  )
+}
+
+# Define save directory for way3sonic vs way4sonic
+save_dir_sonic <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Figure/WindSpeed/way3sonic_way4sonic"
+# Ensure the directory exists
+if (!dir.exists(save_dir_sonic)) dir.create(save_dir_sonic, recursive = TRUE)
+
+# Function to create and save scatter plots
+plot_and_save <- function(df, year, save_dir, x_var, y_var, x_label, y_label, site) {
+  # Convert columns to numeric
+  df[[x_var]] <- as.numeric(df[[x_var]])
+  df[[y_var]] <- as.numeric(df[[y_var]])
+  
+  # Remove NA values
+  df <- df[!is.na(df[[x_var]]) & !is.na(df[[y_var]]), ]
+  
+  # Create the plot
+  p <- ggplot(df, aes_string(x = x_var, y = y_var)) +
+    geom_point(color = "blue", alpha = 0.5) +  # Scatter points
+    geom_smooth(method = "lm", color = "red", formula = y ~ x) +  # Regression line
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 line
+    stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 formula = y ~ x, parse = TRUE) +  # Regression equation and R2
+    labs(
+      x = x_label, 
+      y = y_label,
+      title = paste("Wind Speed Comparison -", site, year)
+    ) +
+    theme_minimal()
+  
+  # Define file name
+  file_name <- paste0(save_dir, "/", site, "_WindSpeed_", year, ".png")
+  
+  # Save plot
+  ggsave(file_name, plot = p, width = 8, height = 6, dpi = 300)
+}
+# Updated years range
+years <- 2018:2024  
+# Loop through the years and create the scatter plots
+for (i in 1:7) {
+  plot_and_save(
+    df = w3w4_dfswind[[i]],
+    year = years[i],
+    save_dir = save_dir_sonic,
+    x_var = "wind_speed_w3_sonic",
+    y_var = "wind_speed_w4_sonic",
+    x_label = expression("Way3 Sonic Anemometer Wind Speed "~ms^{-1}),
+    y_label = expression("Way4 Sonic Anemometer Wind Speed "~ms^{-1}),
+    site = "way3sonic_way4sonic"
+  )
+}
+
+
+######################################
+######FIND THE OUTER VALUES OF USTAR##
+######################################
+######################################
+### way3_data_nfws : NON CORRECTED
+### way4_data_nfws : NON CORRECTED
+### way3_data : CORRECTED
+### way4_data : CORRECTED
+
+# Function to get the correct column name dynamically
+get_column_name <- function(df, possible_names) {
+  return(possible_names[possible_names %in% colnames(df)][1])
+}
+
+# Initialize lists
+way3_dfswindustar <- vector("list", length = 7)
+way4_dfswindustar <- vector("list", length = 7)
+way4_outliers <- vector("list", length = 7)  # Store outliers for each dataset
+
+# Loop through both way3 and way4 data frames and select required columns with renaming
+for (i in 1:7) {
+  # Determine the correct column name for ustar dynamically
+  way3_ustar_col <- get_column_name(way3_data_nfws[[i]], c("u_", "ustar"))
+  way4_ustar_col <- get_column_name(way4_data_nfws[[i]], c("u_", "ustar"))
+  
+  # Process way3 data
+  way3_dfswindustar[[i]] <- way3_data_nfws[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w3_sonic = wind_speed, 
+      way3ustar = all_of(way3_ustar_col) # Select dynamically
+    ) %>%
+    mutate(across(c(wind_speed_w3_sonic, way3ustar), as.numeric))  # Convert to numeric
+  
+  # Process way4 data
+  way4_dfswindustar[[i]] <- way4_data_nfws[[i]] %>%
+    dplyr::select(
+      TIMESTAMP,
+      wind_speed_w4_sonic = wind_speed,
+      way4ustar = all_of(way4_ustar_col) # Select dynamically
+    ) %>%
+    mutate(across(c(wind_speed_w4_sonic, way4ustar), as.numeric))  # Convert to numeric
+  
+  # Remove rows with NA values before fitting the model
+  clean_data <- way4_dfswindustar[[i]] %>%
+    filter(!is.na(way4ustar) & !is.na(wind_speed_w4_sonic))
+  
+  # Fit a linear regression model for USTAR ~ WS in way4 (if data is sufficient)
+  if (nrow(clean_data) > 1) {
+    lm_model <- lm(way4ustar ~ wind_speed_w4_sonic, data = clean_data)
+    way4_dfswindustar[[i]]$predicted_ustar <- predict(lm_model, newdata = way4_dfswindustar[[i]])
+    way4_dfswindustar[[i]]$residuals <- abs(way4_dfswindustar[[i]]$way4ustar - way4_dfswindustar[[i]]$predicted_ustar)
+    
+    # Apply different thresholds for outlier detection
+    threshold <- if (i %in% c(6, 7)) {
+      3.75 * sd(way4_dfswindustar[[i]]$residuals, na.rm = TRUE)
+    } else {
+      4 * sd(way4_dfswindustar[[i]]$residuals, na.rm = TRUE)
+    }
+    
+    # Identify outliers
+    way4_outliers[[i]] <- way4_dfswindustar[[i]] %>%
+      filter(residuals > threshold)
+    
+    # Print for verification
+    print(way4_outliers[[i]])
+    
+    # Get timestamps and mask values in way4_data
+    outlier_timestamps <- way4_outliers[[i]]$TIMESTAMP
+    rows_to_na <- way4_data[[i]]$TIMESTAMP %in% outlier_timestamps
+    way4_data[[i]]$ustar[rows_to_na] <- NA
+    way4_data[[i]]$u_[rows_to_na] <- NA
+  } else {
+    message(paste("Skipping dataset", i, "due to insufficient non-NA data."))
+  }
+}
+
+
+
+plot(way4_outliers[[1]]$wind_speed_w4_sonic, way4_outliers[[1]]$way4ustar,
+     main = "Outliers - 2018",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[2]]$wind_speed_w4_sonic, way4_outliers[[2]]$way4ustar,
+     main = "Outliers - 2019",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[3]]$wind_speed_w4_sonic, way4_outliers[[3]]$way4ustar,
+     main = "Outliers - 2020",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[4]]$wind_speed_w4_sonic, way4_outliers[[4]]$way4ustar,
+     main = "Outliers - 2021",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[5]]$wind_speed_w4_sonic, way4_outliers[[5]]$way4ustar,
+     main = "Outliers - 2022",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[6]]$wind_speed_w4_sonic, way4_outliers[[6]]$way4ustar,
+     main = "Outliers - 2023",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+plot(way4_outliers[[7]]$wind_speed_w4_sonic, way4_outliers[[7]]$way4ustar,
+     main = "Outliers - 2024",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "red")
+
+
+plot(way4_data[[1]]$wind_speed, way4_data[[1]]$u_,
+     main = "2018",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[2]]$wind_speed, way4_data[[2]]$u_,
+     main = "Dataset 2",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[3]]$wind_speed, way4_data[[3]]$u_,
+     main = "Dataset 3",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[4]]$wind_speed, way4_data[[4]]$u_,
+     main = "Dataset 4",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[5]]$wind_speed, way4_data[[5]]$u_,
+     main = "Dataset 5",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[6]]$wind_speed, way4_data[[6]]$u_,
+     main = "2023",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+plot(way4_data[[7]]$wind_speed, way4_data[[7]]$u_,
+     main = "2024",
+     xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+     pch = 19, col = "blue")
+
+
+
+###########################################################
+#############windspeed ustar###############################
+###########################################################
+library(ggplot2)
+library(viridis)
+# Function to plot each dataset using ggplot2
+# Function to plot each dataset using ggplot2
+plot_wind_vs_ustar <- function(data, title_text) {
+  ggplot(data, aes(x = as.numeric(wind_speed), 
+                   y = as.numeric(u_), 
+                   color = as.numeric(DOY))) +
+    geom_point(size = 2, alpha = 0.8) +
+    scale_color_viridis_c(direction = -1, name = "Day of the year (day)",
+                          option = "mako") +
+    labs(title = title_text,
+         x = "Wind Speed (w4_sonic)",
+         y = "Ustar (way4ustar)") +
+    theme_minimal(base_size = 14)
+}
+
+
+
+plot_wind_vs_ustar(way4_data_nfws[[1]], "2018")
+plot_wind_vs_ustar(way4_data_nfws[[2]], "2019")
+plot_wind_vs_ustar(way4_data_nfws[[3]], "2020")
+plot_wind_vs_ustar(way4_data_nfws[[4]], "2021")
+plot_wind_vs_ustar(way4_data_nfws[[5]], "2022")
+plot_wind_vs_ustar(way4_data_nfws[[6]], "2023")
+plot_wind_vs_ustar(way4_data_nfws[[7]], "2024")
+
+
+#2023 TA_1_1_1 T-Sonic fail 0.652 -30%
+# Convert air_temperature and sonic_temperature to numeric (if necessary) and then to Celsius
+way3_data_nfws[[6]]$air_temperature <- as.numeric(way3_data_nfws[[6]]$air_temperature)
+way3_data_nfws[[6]]$sonic_temperature <- as.numeric(way3_data_nfws[[6]]$sonic_temperature)
+
+
+# Now convert from Kelvin to Celsius
+way3_data_nfws[[6]]$air_temperature_C <- way3_data_nfws[[6]]$air_temperature - 273.15
+way3_data_nfws[[6]]$sonic_temperature_C <- way3_data_nfws[[6]]$sonic_temperature - 273.15
+
+
+
+ggplot(way3_data_nfws[[6]], aes(x = air_temperature_C, y = sonic_temperature_C)) +
+  geom_point(color = "blue", size = 2, alpha = 0.7) + # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, color = "red", linetype = "dashed") + # Add linear regression line
+  labs(title = "Way 3 (2023)",
+       x = "Air Temperature (°C)",
+       y = "Sonic Temperature (°C)") +
+  theme_minimal(base_size = 10)
+
+
+way3_data_nfws[[6]]$air_temperature <- as.numeric(way3_data_nfws[[6]]$air_temperature)  # Ensure numeric
+way3_data_nfws[[6]]$sonic_temperature <- as.numeric(way3_data_nfws[[6]]$sonic_temperature)  # Ensure numeric
+way3_data_nfws[[6]]$air_temperature_C <- way3_data_nfws[[6]]$air_temperature - 273.15  # Kelvin to Celsius
+way3_data_nfws[[6]]$sonic_temperature_C <- way3_data_nfws[[6]]$sonic_temperature - 273.15  # Kelvin to Celsius
+df <- way3_data_nfws[[6]] %>% filter(!is.na(air_temperature_C), !is.na(sonic_temperature_C))  # Remove NA rows
+lm_model <- lm(sonic_temperature_C ~ air_temperature_C, data = df)  # Fit linear model
+df$predicted_sonic <- predict(lm_model, newdata = df)  # Predict values
+df$residuals <- df$sonic_temperature_C - df$predicted_sonic  # Calculate residuals
+threshold <- 1.7 * sd(df$residuals, na.rm = TRUE)  # Set 3 SD threshold
+df$outlier <- abs(df$residuals) > threshold  # Identify outliers
+way3_data_nfws[[6]]$air_temperature_C[df$outlier] <- NA  # Replace outliers with NA in Celsius
+way3_data_nfws[[6]]$air_temperature[df$outlier] <- NA  # Replace outliers with NA in Kelvin
+way3_data_nfws[[6]]$air_temperature[df$index[df$outlier]] <- NA  #Replace outlier values with NA
+
+ggplot(df, aes(x = air_temperature_C, y = sonic_temperature_C, color = outlier)) +  # Plot
+  geom_point(size = 2, alpha = 0.7) +  # Scatter
+  geom_smooth(method = "lm", se = FALSE, color = "red", linetype = "dashed") +  # Regression line
+  labs(title = "Way 3 (2023): Air Temp vs Sonic Temp", x = "Air Temperature (°C)", y = "Sonic Temperature (°C)") +
+  theme_minimal(base_size = 10)  # Theme
+plot(way3_data_nfws[[6]]$air_temperature_C, way3_data_nfws[[6]]$sonic_temperature)
+plot(way3_data_nfws[[6]]$air_temperature, way3_data_nfws[[6]]$sonic_temperature)
+plot(way3_data_nfws[[6]]$air_temperature_C, way3_data_nfws[[6]]$sonic_temperature)
+plot(way3_data_nfws[[6]]$air_temperature, way3_data_nfws[[6]]$sonic_temperature)
+plot(way3_data[[6]]$air_temperature, way3_data[[6]]$sonic_temperature) ##dataframe where the function was applied before 
+
+
+##############################################
+######### USTAR WINDSPEED OUTLIERS AND RETAINED DATA
+###############################################
+# Loop to generate plots for all 7 years
+for (i in 1:7) {
+  # Plot retained data in blue
+  plot(way4_dfswindustar[[i]]$wind_speed_w4_sonic, way4_dfswindustar[[i]]$way4ustar,
+       main = paste("Ustar vs Wind Speed -", 2017 + i),
+       xlab = "Wind Speed (w4_sonic)", ylab = "Ustar (way4ustar)",
+       pch = 19, col = "blue")
+  
+  # Add outliers in red (if available)
+  if (!is.null(way4_outliers[[i]]) && nrow(way4_outliers[[i]]) > 0) {
+    points(way4_outliers[[i]]$wind_speed_w4_sonic, way4_outliers[[i]]$way4ustar,
+           pch = 19, col = "red")
+  }
+  
+  # Add legend
+  legend("topright", legend = c("Retained Data", "Outliers"),
+         col = c("blue", "red"), pch = 19)
+}
+
+
+##Plot Ustar vs FC_1_1_1 for the year 2019
+
+#########################
+#########################
+###Plot the data get a ustar without th filter#########
 
 
 #### Merge with Caanopy Height Data
@@ -788,4 +1474,5 @@ for (i in 1:7) {
 # way3_data[[6]] <- merge(way3_data[[6]], CHDLWay3[[5]], by = "TIMESTAMP", all = TRUE)
 # # Merge 2024 data (CHDLWay3[[6]] into way3_data[[7]])
 # way3_data[[7]] <- merge(way3_data[[7]], CHDLWay3[[6]], by = "TIMESTAMP", all = TRUE)
+
 

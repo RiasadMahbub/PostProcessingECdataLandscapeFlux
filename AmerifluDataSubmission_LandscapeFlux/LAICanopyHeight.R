@@ -2,6 +2,9 @@ library(readxl)
 library(dplyr)
 library(tidyr)
 library(lubridate)
+library(dplyr)
+library(zoo)  # For na.approx function
+
 ##### 2018-2020 ##################
 # Define file path
 file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/LAI/2018-2024/2018-2020/2018-2020LAI_Canopy.xlsx"
@@ -51,8 +54,11 @@ Way42020CHLAI <- filtered_data20182020 %>%
   filter(grepl("^W4_", Field_Year) & Year == 2020) %>%
   select(-Year, -Field_Year)
 Way42020CHLAI <- Way42020CHLAI[as.Date(Way42020CHLAI$Date) <= as.Date("2020-08-14"), ]
+
 #################2021################
-#############LAI2021####################
+#####################################
+############LAI 2021#############
+#####################################
 # Define file path
 file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/LAI/2018-2024/2021/LAIMasterFileScatteringCorrections2021.xlsx"
 # Read the first sheet
@@ -97,7 +103,7 @@ Way42021LAI <- average_by_date(Way42021LAI, "Date")
 
 
 #####################################
-############CANOPYHEIGHT2021#############
+############CANOPYHEIGHT2021#########
 #####################################
 file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/LAI/2018-2024/2021/RiceFieldDataCanopyLAI2021.xlsx"
 # Sheets to read
@@ -264,7 +270,10 @@ Way32022CHLAI <- Way32022LAI %>%
 Way42022CHLAI <- Way42022LAI %>%
   full_join(Way4canopyheight2022, by = "Date")
 
+################################################
 #################2023################
+################################################
+
 # Define file path
 file_path <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalRawData/LAI/2018-2024/2023/RiceFieldDataCanopyLAI2023.xlsx"
 # Sheets to read
@@ -316,7 +325,7 @@ calculate_avg_height <- function(df) {
 filtered_data_list <- lapply(filtered_data_list, calculate_avg_height)
 # Keep only Date and Avg_Canopy_Height columns
 filtered_data_list <- lapply(filtered_data_list, function(df) {
-  df <- df[, c("Date", "Avg_Canopy_Height", "LAI_corrected")]
+  df <- df[, c("Date",  "LAI_corrected","Avg_Canopy_Height")]
   return(df)
 })
 # Print column names again to confirm the new column is added
@@ -402,7 +411,7 @@ calculate_avg_height <- function(df) {
 filtered_data_list <- lapply(filtered_data_list, calculate_avg_height)
 # Keep only Date and Avg_Canopy_Height columns
 filtered_data_list <- lapply(filtered_data_list, function(df) {
-  df <- df[, c("Date", "Avg_Canopy_Height", "LAI_corrected")]
+  df <- df[, c("Date", "LAI_corrected", "Avg_Canopy_Height")]
   return(df)
 })
 
@@ -423,7 +432,7 @@ average_by_date <- function(data, date_col) {
 Way4canopyheight2024 <- average_by_date(merged_W4, "Date")
 Way3canopyheight2024 <- average_by_date(merged_W3, "Date")
 
-# Remove rows where the date is greater than 2024-08-07
+# Remove rows where the date is greater than 2024-08-07 (values outside growing season)
 Way42024CHLAI <- Way4canopyheight2024 %>%
   filter(Date <= as.POSIXct("2024-08-07 00:00:00"))
 Way32024CHLAI <- Way3canopyheight2024 %>%
@@ -448,10 +457,7 @@ Way42019CHLAI
 Way42018CHLAI
 
 
-library(dplyr)
-library(zoo)  # For na.approx function
 
-library(zoo)
 
 gapfill_and_interpolate <- function(df) {
   # Ensure the date column is in POSIXct format
@@ -582,21 +588,113 @@ plot(Way42020CHLAI$Date, Way42020CHLAI$Avg_Canopy_Height,
 
 # Plot for Way42019CHLAI
 plot(Way42019CHLAI$Date, Way42019CHLAI$Avg_Canopy_Height,
-     main = "Avg Canopy Height vs. Date (Way42019CHLAI)",
+     main = "Field data Avg Canopy Height (Way42019CHLAI)",
      xlab = "Date",
      ylab = "Average Canopy Height",
+     type = "p")
+# Plot for Way42018CHLAI
+plot(Way32024CHLAI$Date, Way32024CHLAI$Avg_Canopy_Height,
+     main = "8 day  Avg Canopy Height (Way32024)",
+     xlab = "Date",
+     ylab = "Average Canopy Height Gapfilled (cm)",
      type = "p")
 
 # Plot for Way42018CHLAI
 plot(Way3CHLAIlist$Way32024CHLAI_processed$TIMESTAMP, Way3CHLAIlist$Way32024CHLAI_processed$canopy_height_gapfilled,
-     main = "Avg Canopy Height vs. Date (Way42018CHLAI)",
+     main = "30 min Avg Canopy Height (Way32024)",
      xlab = "Date",
-     ylab = "Average Canopy Height",
+     ylab = "Average Canopy Height Gapfilled(cm)",
      type = "p")
 
 
+# Plot histograms for original and gapfilled canopy_height from 2018 to 2024
+
+# 2018
+hist(Way32018CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2018", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32018CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2018", xlab = "Canopy Height")
+
+# 2019
+hist(Way32019CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2019", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32019CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2019", xlab = "Canopy Height")
+
+# 2020
+hist(Way32020CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2020", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32020CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2020", xlab = "Canopy Height")
+
+# 2021
+hist(Way32021CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2021", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32021CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2021", xlab = "Canopy Height")
+
+# 2022
+hist(Way32022CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2022", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32022CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2022", xlab = "Canopy Height")
+
+# 2023
+hist(Way32023CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2023", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32023CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2023", xlab = "Canopy Height")
+
+# 2024
+hist(Way32024CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2024", xlab = "Canopy Height")
+hist(Way3CHLAIlist$Way32024CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2024", xlab = "Canopy Height")
+
+
+
+######################way 4###########################
+# 2018
+hist(Way42018CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2018", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42018CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2018", xlab = "Canopy Height")
+
+# 2019
+hist(Way42019CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2019", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42019CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2019", xlab = "Canopy Height")
+
+# 2020
+hist(Way42020CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2020", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42020CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2020", xlab = "Canopy Height")
+
+# 2021
+hist(Way42021CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2021", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42021CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2021", xlab = "Canopy Height")
+
+# 2022
+hist(Way42022CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2022", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42022CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2022", xlab = "Canopy Height")
+
+# 2023
+hist(Way42023CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2023", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42023CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2023", xlab = "Canopy Height")
+
+# 2024
+hist(Way42024CHLAI$Avg_Canopy_Height, main = "Original Canopy Height - 2024", xlab = "Canopy Height")
+hist(Way4CHLAIlist$Way42024CHLAI_processed$canopy_height_gapfilled, main = "Gapfilled Canopy Height - 2024", xlab = "Canopy Height")
+
+
+
+# SAVE the files
 # 
-# 
+# Define output directories
+way3_dir <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalProcessedData/CanopyHeight/Way3"
+way4_dir <- "C:/Users/rbmahbub/Documents/RProjects/AmerifluxDataSubmission_LandscapeFlux/Data/InputLocalProcessedData/CanopyHeight/Way4"
+
+# Ensure directories exist
+if (!dir.exists(way3_dir)) dir.create(way3_dir, recursive = TRUE)
+if (!dir.exists(way4_dir)) dir.create(way4_dir, recursive = TRUE)
+
+# Save Way3 processed CHLAI data
+for (name in names(Way3CHLAIlist)) {
+  write.csv(Way3CHLAIlist[[name]], file = file.path(way3_dir, paste0(name, ".csv")), row.names = FALSE)
+}
+
+# Save Way4 processed CHLAI data
+for (name in names(Way4CHLAIlist)) {
+  write.csv(Way4CHLAIlist[[name]], file = file.path(way4_dir, paste0(name, ".csv")), row.names = FALSE)
+}
+
+print("Processed CHLAI data saved successfully!")
+
+
+
+
 # #######OLD LAI CANOPY HEIGHT ###############
 # ################################
 # ### Canopy height dataset#######
